@@ -30,27 +30,54 @@ const Login = () => {
     if (!formData.email) newErrors.email = "Email is required";
     if (!formData.password) newErrors.password = "Password is required";
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0; // true if no errors
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
+    const payload = {
+      email: formData.email,
+      password: formData.password,
+    };
+
     try {
-      const response = await axios.post(ApiLink.login.url, formData, {
+      const response = await axios.post(ApiLink.login.url, payload, {
         withCredentials: true,
       });
 
-      if (response.status === 200) {
+      if (response.status === 200 && response.data.ok) {
+        // Store token in localStorage
         localStorage.setItem("token", response.data.token);
-        dispatch(login(response.data.user));
-        navigate("/");
+
+        // Dispatch login with details from response (no refresh token)
+        dispatch(
+          login({
+            token: response.data.token,
+            id: response.data.id,
+            name: response.data.userName,
+            role: response.data.role,
+            approved: response.data.approved,
+          })
+        );
+
+        // Role-based navigation
+        if (response.data.role === "photographer") {
+          navigate("/photographer-dashboard");
+        } else {
+          navigate("/");
+        }
+      } else {
+        setErrors({
+          submit: response.data.msg || "Login failed. Please try again.",
+        });
       }
     } catch (error) {
       setErrors({
         submit:
-          error.response?.data?.message || "Login failed. Please try again.",
+          error.response?.data?.msg ||
+          "Login failed. Please check your credentials and try again.",
       });
     }
   };

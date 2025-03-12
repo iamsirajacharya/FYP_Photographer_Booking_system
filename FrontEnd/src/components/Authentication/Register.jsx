@@ -1,47 +1,35 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { AlertCircle, Camera, User, Mail, Phone, Lock } from "lucide-react";
+import { AlertCircle, User, Mail, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ApiLink from "../../api";
 
 const Register = () => {
   const navigate = useNavigate();
-  // Form state
   const [formData, setFormData] = useState({
-    Username: "",
+    name: "",
     email: "",
     password: "",
     confirmPassword: "",
-    phone: "",
     role: "client",
-    // profile_image: null,
-    // agreesToTerms: false,
   });
 
-  // Loading and error state
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
-  // const [photoPreview, setPhotoPreview] = useState(null);
 
   // Validate form function
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.Username.trim()) {
-      newErrors.Username = "Username is required";
+    if (!formData.name.trim()) {
+      newErrors.name = "Name is required";
     }
 
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Please enter a valid email";
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required";
-    } else if (!/^\+?[\d\s-]{10,}$/.test(formData.phone)) {
-      newErrors.phone = "Please enter a valid phone number";
     }
 
     if (!formData.password) {
@@ -60,11 +48,6 @@ const Register = () => {
       newErrors.role = "Role is required";
     }
 
-    // if (!formData.agreesToTerms) {
-    //   newErrors.agreesToTerms =
-    //     "You must agree to the Terms and Privacy Policy";
-    // }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -78,50 +61,37 @@ const Register = () => {
     });
   };
 
-  // const handlePhotoUpload = (e) => {
-  //   const file = e.target.files[0];
-  //   if (file) {
-  //     setFormData((prev) => ({ ...prev, profile_image: file }));
-  //     setPhotoPreview(URL.createObjectURL(file));
-  //   }
-  // };
-
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
 
     try {
       const userData = {
-        Username: formData.Username,
+        name: formData.name,
         email: formData.email,
         password: formData.password,
-        phone: formData.phone,
         role: formData.role,
       };
 
       const response = await axios.post(ApiLink.register.url, userData, {
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         withCredentials: true,
       });
 
       console.log("Registration Successful:", response.data);
+      setSuccessMessage("Registration successful! Redirecting...");
 
-      setSuccessMessage("Registration successful! Redirecting to login...");
-
-      setTimeout(() => navigate("/login"), 2000);
+      // Navigate all users to /login (removed the /apply logic)
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
     } catch (err) {
       console.error("Registration failed:", err.response?.data);
-
       setErrors({
-        general: err.response?.data?.message || "Something went wrong!",
+        general: err.response?.data?.msg || "Something went wrong!",
       });
     } finally {
       setLoading(false);
@@ -143,56 +113,27 @@ const Register = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* <div className="flex justify-center mb-6">
-            <div className="relative">
-              <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-                {photoPreview ? (
-                  <img
-                    src={photoPreview}
-                    alt="Profile preview"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Camera className="w-8 h-8 text-gray-400" />
-                )}
-              </div>
-              <label
-                htmlFor="photo-upload"
-                className="absolute bottom-0 right-0 bg-blue-500 rounded-full p-2 cursor-pointer"
-              >
-                <input
-                  type="file"
-                  id="photo-upload"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                />
-                <span className="text-white text-xl">+</span>
-              </label>
-            </div>
-          </div> */}
-
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 <div className="flex items-center space-x-2">
                   <User className="w-4 h-4" />
-                  <span>Username</span>
+                  <span>Name</span>
                 </div>
               </label>
               <input
                 type="text"
-                name="Username"
-                value={formData.Username}
+                name="name"
+                value={formData.name}
                 onChange={handleInputChange}
                 className={`mt-1 block w-full rounded-md border ${
-                  errors.Username ? "border-red-300" : "border-gray-300"
+                  errors.name ? "border-red-300" : "border-gray-300"
                 } px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
               />
-              {errors.Username && (
+              {errors.name && (
                 <p className="mt-1 text-sm text-red-600 flex items-center">
                   <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.Username}
+                  {errors.name}
                 </p>
               )}
             </div>
@@ -217,30 +158,6 @@ const Register = () => {
                 <p className="mt-1 text-sm text-red-600 flex items-center">
                   <AlertCircle className="w-4 h-4 mr-1" />
                   {errors.email}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                <div className="flex items-center space-x-2">
-                  <Phone className="w-4 h-4" />
-                  <span>Phone Number</span>
-                </div>
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className={`mt-1 block w-full rounded-md border ${
-                  errors.phone ? "border-red-300" : "border-gray-300"
-                } px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-              />
-              {errors.phone && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.phone}
                 </p>
               )}
             </div>
@@ -316,32 +233,6 @@ const Register = () => {
                 </p>
               )}
             </div>
-
-            {/* <div className="flex items-center">
-              <input
-                type="checkbox"
-                name="agreesToTerms"
-                checked={formData.agreesToTerms}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-blue-500 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label className="ml-2 block text-sm text-gray-700">
-                I agree to the{" "}
-                <a href="#" className="text-blue-500 hover:text-blue-700">
-                  Terms of Service
-                </a>{" "}
-                and{" "}
-                <a href="#" className="text-blue-500 hover:text-blue-700">
-                  Privacy Policy
-                </a>
-              </label>
-            </div>
-            {errors.agreesToTerms && (
-              <p className="text-sm text-red-600 flex items-center">
-                <AlertCircle className="w-4 h-4 mr-1" />
-                {errors.agreesToTerms}
-              </p>
-            )} */}
           </div>
 
           <button

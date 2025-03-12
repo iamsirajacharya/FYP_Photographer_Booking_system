@@ -1,57 +1,50 @@
-require("dotenv").config();
 const express = require("express");
+const sequelize = require("./utils/dbConfig"); // Sequelize instance connecting to MySQL
+const { logger } = require("./middlewares/logger");
+const { userRoute } = require("./routes/userRoutes");
+const { BookingRouter } = require("./routes/bookingRoutes");
+// const { authRoute } = require("./routes/authroutes");
 const cors = require("cors");
-const bodyParser = require("body-parser");
-const sequelize = require("./utils/dbConfig");
+require("dotenv").config();
 
 const app = express();
 
-// const allowedOrigins = ["http://localhost:5174", "http://127.0.0.1:5173"];
+// Configure CORS to allow requests from your React frontend
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 
-const corsOptions = {
-  origin: "http://localhost:5173",
-  credentials: true, //access-control-allow-credentials:true
-  optionSuccessStatus: 200,
-};
-
-app.use(cors(corsOptions));
 app.use(express.json());
+app.use(logger);
+app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
 
-app.use(bodyParser.json());
-app.use((err, req, res, next) => {
-  const statusCode = err.statusCode || 500;
-  res.status(statusCode).json({
-    message: err.message || "Internal Server Error",
-    error: err.stack,
-  });
+app.get("/", (req, res) => {
+  try {
+    res.send({ ok: true, msg: "Welcome to the Backend of snapShoot" });
+  } catch (error) {
+    res.send({ ok: false, msg: error.message });
+  }
 });
 
-// Routes
-const users = require("./routes/authroutes");
+app.use("/user", userRoute);
+// app.use("/auth", authRoute);
+app.use("/booking", BookingRouter);
 
-app.use("/api", users);
-
-// Start Server
-const PORT = 3001; // Changed port to avoid permission issues
-
-// app.listen(PORT, async () => {
-//   console.log(`Server running on port ${PORT}`);
-//   // Sync Database with models
-//   await sequelize.sync({ alter: true });
-//   console.log("Database Synced Succesfully!");
-// });
-
-const sync = async () => {
+const port = parseInt(process.env.PORT, 10) || 3001;
+app.listen(port, async () => {
   try {
-    await sequelize.sync({ alter: true }); // Keeps existing data and updates schema
-    console.log("Database synced successfully.");
+    await sequelize.authenticate();
+    console.log("Connected to MySQL Database");
 
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
+    // Synchronize all models (tables)
+    await sequelize.sync({ alter: true });
+    console.log("Database synchronized successfully.");
   } catch (error) {
-    console.error("Error syncing database:", error);
+    console.error("Error synchronizing the database:", error.message);
   }
-};
-sync();
+  console.log(`Server is running at port ${port}`);
+});
