@@ -1,5 +1,5 @@
 const express = require("express");
-const sequelize = require("./utils/dbConfig"); // Sequelize instance connecting to MySQL
+const sequelize = require("./utils/dbConfig").default; // Sequelize instance connecting to MySQL
 const { logger } = require("./middlewares/logger");
 const { userRoute } = require("./routes/userRoutes");
 const { BookingRouter } = require("./routes/bookingRoutes");

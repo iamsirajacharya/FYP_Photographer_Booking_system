@@ -1,5 +1,5 @@
 const { Sequelize, DataTypes } = require("sequelize");
-const sequelize = require("../utils/dbConfig");
+const sequelize = require("../utils/dbConfig").default;
 
 // Initialize models by passing sequelize and DataTypes
 const User = require("./user")(sequelize, DataTypes);
