@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { logout } from "../../Redux/slice/authSlice";
+import { logout } from "../../redux/slices/authSlice";
 import axios from "axios";
 import ApiLink from "../../api";
 

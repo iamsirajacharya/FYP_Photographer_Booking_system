@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
-import { login, logout } from "../../Redux/slice/authSlice";
+import { login, logout } from "../../redux/slices/authSlice";
 import { applyAsPhotographer } from "../../Redux/slice/authThunk"; // adjust import path as needed
 import { useNavigate } from "react-router-dom";
 import axios from "axios";

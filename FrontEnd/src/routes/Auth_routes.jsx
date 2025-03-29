@@ -1,7 +1,7 @@
 import React from "react";
 import { Routes, Route } from "react-router";
 import Register from "../components/Authentication/Register";
-import Home from "../components/Dashboard/Home";
+import Home from "../components/ClientDashboard/Home";
 
 function Auth_routes() {
   return (

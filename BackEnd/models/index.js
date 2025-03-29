@@ -1,58 +1,50 @@
-const { Sequelize, DataTypes } = require("sequelize");
-const sequelize = require("../utils/dbConfig").default;
+const fs = require("fs");
+const path = require("path");
+const Sequelize = require("sequelize");
+const process = require("process");
+const basename = path.basename(__filename);
+const env = process.env.NODE_ENV || "development";
+const config = require("../config/config.js")[env];
+const db = {};
 
-// Initialize models by passing sequelize and DataTypes
-const User = require("./user")(sequelize, DataTypes);
-const Booking = require("./booking")(sequelize, DataTypes);
-const Image = require("./image")(sequelize, DataTypes);
-const Meeting = require("./meeting")(sequelize, DataTypes);
-const Notification = require("./notifications")(sequelize, DataTypes);
+let sequelize;
+if (config.use_env_variable) {
+  sequelize = new Sequelize(process.env[config.use_env_variable], config);
+} else {
+  sequelize = new Sequelize(
+    config.database,
+    config.username,
+    config.password,
+    config
+  );
+}
 
-// Associations for Booking model
-User.hasMany(Booking, {
-  foreignKey: "photographer_id",
-  as: "photographerBookings",
-});
-User.hasMany(Booking, {
-  foreignKey: "client_id",
-  as: "clientBookings",
-});
-Booking.belongsTo(User, {
-  foreignKey: "photographer_id",
-  as: "photographer",
-});
-Booking.belongsTo(User, {
-  foreignKey: "client_id",
-  as: "client",
-});
+// Import all model files
+fs.readdirSync(__dirname)
+  .filter((file) => {
+    return (
+      file.indexOf(".") !== 0 &&
+      file !== basename &&
+      file.slice(-3) === ".js" &&
+      file.indexOf(".test.js") === -1
+    );
+  })
+  .forEach((file) => {
+    const model = require(path.join(__dirname, file))(
+      sequelize,
+      Sequelize.DataTypes
+    );
+    db[model.name] = model;
+  });
 
-// Associations for Notification model
-Notification.belongsTo(User, {
-  foreignKey: "from_user_id",
-  as: "sender",
-});
-Notification.belongsTo(User, {
-  foreignKey: "to_user_id",
-  as: "receiver",
-});
-Notification.belongsTo(Booking, {
-  foreignKey: "booking_id",
-  as: "booking",
+// Set up associations
+Object.keys(db).forEach((modelName) => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
 });
 
-// Associations for Image model
-User.hasMany(Image, { foreignKey: "user_id", as: "images" });
-Image.belongsTo(User, { foreignKey: "user_id", as: "user" });
+db.sequelize = sequelize;
+db.Sequelize = Sequelize;
 
-// Associations for Meeting model
-User.hasMany(Meeting, { foreignKey: "photographer_id", as: "meetings" });
-Meeting.belongsTo(User, { foreignKey: "photographer_id", as: "photographer" });
-
-module.exports = {
-  sequelize,
-  User,
-  Booking,
-  Image,
-  Meeting,
-  Notification,
-};
+module.exports = db;

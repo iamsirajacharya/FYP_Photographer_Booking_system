@@ -1,258 +1,188 @@
 import React, { useState } from "react";
-import axios from "axios";
-import { AlertCircle, User, Mail, Lock } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import ApiLink from "../../api";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
-const Register = () => {
-  const navigate = useNavigate();
+export default function RegisterForm() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
-    role: "client",
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [successMessage, setSuccessMessage] = useState("");
-
-  // Validate form function
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email";
-    }
-
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
-    }
-
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password";
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
-    }
-
-    if (!formData.role.trim()) {
-      newErrors.role = "Role is required";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle input changes
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === "checkbox" ? checked : value,
-    });
-  };
-
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    setError("");
 
-    setLoading(true);
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
-      const userData = {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        role: formData.role,
-      };
+      // Simulate an async API call
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      const response = await axios.post(ApiLink.register.url, userData, {
-        headers: { "Content-Type": "application/json" },
-        withCredentials: true,
-      });
-
-      console.log("Registration Successful:", response.data);
-      setSuccessMessage("Registration successful! Redirecting...");
-
-      // Navigate all users to /login (removed the /apply logic)
-      setTimeout(() => {
-        navigate("/login");
-      }, 2000);
+      // In place of Next.js router.push("/login"), just log or do your own redirect
+      console.log("Registration successful. Redirect user to /login.");
     } catch (err) {
-      console.error("Registration failed:", err.response?.data);
-      setErrors({
-        general: err.response?.data?.msg || "Something went wrong!",
-      });
+      setError("Registration failed. Please try again.");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6 space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
-          {successMessage && (
-            <p className="text-green-600 text-center">{successMessage}</p>
-          )}
-          {errors.general && (
-            <p className="text-red-600 text-center">{errors.general}</p>
-          )}
-          <p className="text-gray-600 mt-2">Join our photography community</p>
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-12">
+      <div className="w-full max-w-md space-y-6 rounded-lg border border-border bg-background p-6 shadow-md">
+        {/* Title and description */}
+        <div className="space-y-2 text-center">
+          <h1 className="text-3xl font-bold">Create an Account</h1>
+          <p className="text-muted-foreground">
+            Sign up to start booking photographers
+          </p>
         </div>
 
+        {/* Error message */}
+        {error && (
+          <div className="rounded-md bg-red-50 p-3 text-sm text-red-500">
+            {error}
+          </div>
+        )}
+
+        {/* Registration form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                <div className="flex items-center space-x-2">
-                  <User className="w-4 h-4" />
-                  <span>Name</span>
-                </div>
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                className={`mt-1 block w-full rounded-md border ${
-                  errors.name ? "border-red-300" : "border-gray-300"
-                } px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-              />
-              {errors.name && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.name}
-                </p>
-              )}
-            </div>
+          {/* Name */}
+          <div className="space-y-2">
+            <label htmlFor="name" className="text-sm font-medium">
+              Full Name
+            </label>
+            <input
+              id="name"
+              name="name"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-purple-600 focus:outline-none"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="John Doe"
+              required
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                <div className="flex items-center space-x-2">
-                  <Mail className="w-4 h-4" />
-                  <span>Email address</span>
-                </div>
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className={`mt-1 block w-full rounded-md border ${
-                  errors.email ? "border-red-300" : "border-gray-300"
-                } px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-              />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.email}
-                </p>
-              )}
-            </div>
+          {/* Email */}
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium">
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-purple-600 focus:outline-none"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="name@example.com"
+              required
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                <div className="flex items-center space-x-2">
-                  <Lock className="w-4 h-4" />
-                  <span>Password</span>
-                </div>
-              </label>
+          {/* Password */}
+          <div className="space-y-2">
+            <label htmlFor="password" className="text-sm font-medium">
+              Password
+            </label>
+            <div className="relative">
               <input
-                type="password"
+                id="password"
                 name="password"
+                type={showPassword ? "text" : "password"}
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-purple-600 focus:outline-none"
                 value={formData.password}
-                onChange={handleInputChange}
-                className={`mt-1 block w-full rounded-md border ${
-                  errors.password ? "border-red-300" : "border-gray-300"
-                } px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                onChange={handleChange}
+                placeholder="••••••••"
+                required
               />
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.password}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                <div className="flex items-center space-x-2">
-                  <Lock className="w-4 h-4" />
-                  <span>Confirm Password</span>
-                </div>
-              </label>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                className={`mt-1 block w-full rounded-md border ${
-                  errors.confirmPassword ? "border-red-300" : "border-gray-300"
-                } px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-              />
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.confirmPassword}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Role
-              </label>
-              <select
-                name="role"
-                value={formData.role}
-                onChange={handleInputChange}
-                className={`mt-1 block w-full rounded-md border ${
-                  errors.role ? "border-red-300" : "border-gray-300"
-                } px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                <option value="">Select role</option>
-                <option value="client">Client</option>
-                <option value="photographer">Photographer</option>
-              </select>
-              {errors.role && (
-                <p className="mt-1 text-sm text-red-600 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.role}
-                </p>
-              )}
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
           </div>
 
+          {/* Confirm Password */}
+          <div className="space-y-2">
+            <label htmlFor="confirmPassword" className="text-sm font-medium">
+              Confirm Password
+            </label>
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type={showPassword ? "text" : "password"}
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-purple-600 focus:outline-none"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          {/* Terms */}
+          <div className="flex items-center space-x-2">
+            <input
+              id="terms"
+              type="checkbox"
+              className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-600"
+              required
+            />
+            <label htmlFor="terms" className="text-sm text-gray-600">
+              I agree to the{" "}
+              <a href="/terms" className="text-purple-600 hover:underline">
+                Terms of Service
+              </a>{" "}
+              and{" "}
+              <a href="/privacy" className="text-purple-600 hover:underline">
+                Privacy Policy
+              </a>
+            </label>
+          </div>
+
+          {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-            disabled={loading}
+            disabled={isLoading}
+            className="w-full rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none disabled:opacity-70"
           >
-            {loading ? "Registering..." : "Create Account"}
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 size={16} className="animate-spin" />
+                Creating account...
+              </span>
+            ) : (
+              "Create Account"
+            )}
           </button>
         </form>
 
+        {/* Already have account */}
         <div className="text-center text-sm">
-          <span className="text-gray-600">Already have an account?</span>{" "}
-          <a href="/login" className="text-blue-500 hover:text-blue-700">
-            Login
+          <span className="text-gray-600">Already have an account? </span>
+          <a href="/login" className="text-purple-600 hover:underline">
+            Sign in
           </a>
         </div>
       </div>
     </div>
   );
-};
-
-export default Register;
+}
