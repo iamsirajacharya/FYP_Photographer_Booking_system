@@ -1,155 +1,113 @@
-import React, { useState } from "react";
-import { Star, Search, MessageSquare, ThumbsUp, Flag, X } from "lucide-react";
+import { useState } from "react";
+import { Star, MessageSquare, Search, ThumbsUp, Flag } from "lucide-react";
 import DashboardLayout from "../DashboardLayout";
+import { useGetPhotographerReviewsQuery } from "../../redux/api/reviewApi";
+import { useSelector } from "react-redux";
+import dayjs from "dayjs";
 
 export default function PhotographerReviewsPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState("");
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [reportReview, setReportReview] = useState(null);
-  const [reportReason, setReportReason] = useState("");
+  const [replyingTo, setReplyingTo] = useState(null);
 
-  // Mock reviews data
-  const [reviews, setReviews] = useState([
+  // Get the photographer ID from the authenticated user
+  const user = useSelector((state) => state.auth.user);
+  const photographerId = user?.photographerProfile?.id;
+
+  // Fetch reviews for the photographer
+  const { data, error, isLoading } = useGetPhotographerReviewsQuery(
+    photographerId,
     {
-      id: 1,
-      clientName: "Emily Davis",
-      clientImage: "/placeholder.svg?height=100&width=100",
-      date: "2023-10-15",
-      rating: 5,
-      comment:
-        "Alex was amazing! Very professional and made me feel comfortable during the shoot. The photos turned out better than I expected. Would definitely book again for future sessions.",
-      bookingType: "Portrait Session",
-      replied: false,
-      reply: "",
-    },
-    {
-      id: 2,
-      clientName: "John Smith",
-      clientImage: "/placeholder.svg?height=100&width=100",
-      date: "2023-10-10",
-      rating: 5,
-      comment:
-        "Incredible experience working with Alex. The photos captured exactly what I was looking for. Highly recommend!",
-      bookingType: "Wedding Photography",
-      replied: true,
-      reply:
-        "Thank you so much, John! It was a pleasure capturing your special day. Looking forward to working with you again!",
-    },
-    {
-      id: 3,
-      clientName: "Lisa Johnson",
-      clientImage: "/placeholder.svg?height=100&width=100",
-      date: "2023-10-05",
-      rating: 4,
-      comment:
-        "Great photographer with an eye for detail. Very pleased with the results.",
-      bookingType: "Family Portrait",
-      replied: false,
-      reply: "",
-    },
-    {
-      id: 4,
-      clientName: "Michael Brown",
-      clientImage: "/placeholder.svg?height=100&width=100",
-      date: "2023-09-28",
-      rating: 3,
-      comment:
-        "The photos were good, but I wish we had more variety in the poses and settings. Communication was excellent though.",
-      bookingType: "Engagement Photos",
-      replied: false,
-      reply: "",
-    },
-    {
-      id: 5,
-      clientName: "Sarah Wilson",
-      clientImage: "/placeholder.svg?height=100&width=100",
-      date: "2023-09-20",
-      rating: 5,
-      comment:
-        "Alex is a true professional. From the initial consultation to the final delivery, everything was perfect. The photos exceeded my expectations!",
-      bookingType: "Corporate Headshots",
-      replied: true,
-      reply:
-        "Thank you for your kind words, Sarah! I'm so glad you're happy with your headshots.",
-    },
-  ]);
+      skip: !photographerId,
+    }
+  );
+
+  // Extract reviews from the API response (default to empty array)
+  const reviews = data?.reviews || [];
+
+  // Compute statistics based on actual review data
+  const totalReviews = reviews.length;
+  const averageRating =
+    totalReviews > 0
+      ? (
+          reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews
+        ).toFixed(1)
+      : 0;
+
+  // Calculate distribution (ratings from 5 to 1)
+  const distribution = [5, 4, 3, 2, 1].map((rating) => {
+    const count = reviews.filter((r) => r.rating === rating).length;
+    const percentage =
+      totalReviews > 0 ? Math.round((count / totalReviews) * 100) : 0;
+    return { rating, count, percentage };
+  });
 
   // Filter reviews based on active tab and search term
   const filteredReviews = reviews.filter((review) => {
+    // Determine if a review fits the active tab criteria based on presence of a reply or its rating
     const matchesTab =
       activeTab === "all" ||
-      (activeTab === "replied" && review.replied) ||
-      (activeTab === "unreplied" && !review.replied) ||
-      (activeTab === "5star" && review.rating === 5) ||
-      (activeTab === "4star" && review.rating === 4) ||
-      (activeTab === "3star" && review.rating === 3) ||
-      (activeTab === "2star" && review.rating === 2) ||
-      (activeTab === "1star" && review.rating === 1);
+      (activeTab === "replied" && review.reply) ||
+      (activeTab === "unreplied" && !review.reply) ||
+      (activeTab === "positive" && review.rating >= 4) ||
+      (activeTab === "negative" && review.rating <= 3);
 
-    const matchesSearch =
-      review.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.comment.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      review.bookingType.toLowerCase().includes(searchTerm.toLowerCase());
+    // Use client's name (if available) and comment for search matching
+    const term = searchTerm.toLowerCase();
+    const clientName = review.users?.name?.toLowerCase() || "";
+    const comment = review.comment?.toLowerCase() || "";
 
-    return matchesTab && matchesSearch;
+    return matchesTab && (clientName.includes(term) || comment.includes(term));
   });
 
+  // Placeholder for handling a reply submission (integration with a reply API can be added)
   const handleReplySubmit = (reviewId) => {
-    if (!replyText.trim()) return;
-
-    setReviews(
-      reviews.map((review) =>
-        review.id === reviewId
-          ? { ...review, replied: true, reply: replyText }
-          : review
-      )
-    );
+    alert(`Reply submitted for review #${reviewId}: ${replyText}`);
     setReplyingTo(null);
     setReplyText("");
   };
 
-  const handleReportSubmit = () => {
-    if (!reportReason.trim() || !reportReview) return;
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-    alert(`Review reported. Reason: ${reportReason}`);
-    setShowReportModal(false);
-    setReportReview(null);
-    setReportReason("");
-  };
-
-  // Calculate average rating
-  const averageRating =
-    reviews.reduce((total, review) => total + review.rating, 0) /
-      reviews.length || 0;
-
-  // Count reviews by rating
-  const ratingCounts = reviews.reduce(
-    (counts, review) => {
-      counts[review.rating] += 1;
-      return counts;
-    },
-    { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-  );
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="p-4 text-center">
+          <p className="text-red-500 dark:text-red-400">
+            Error loading reviews: {error.message || "Please try again later."}
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
-      {/* Header */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold text-purple-800">My Reviews</h1>
-          <p className="text-muted-foreground">
-            Manage and respond to client feedback
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
+            Client Reviews
+          </h1>
+          <p className="mt-1 text-gray-600 dark:text-gray-300">
+            Manage and respond to your client feedback
           </p>
         </div>
         <div className="mt-4 sm:mt-0">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
             <input
               placeholder="Search reviews..."
-              className="pl-9 w-[250px] rounded border border-gray-300 px-3 py-2 text-sm"
+              className="pl-9 w-full sm:w-[220px] rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:border-purple-500 dark:focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -157,305 +115,312 @@ export default function PhotographerReviewsPage() {
         </div>
       </div>
 
-      {/* Review Summary & List */}
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="border rounded-lg shadow-sm p-4 md:col-span-1">
-          <h2 className="text-lg font-bold">Review Summary</h2>
-          <p className="text-muted-foreground">
-            Your overall rating and statistics
-          </p>
-          <div className="flex flex-col items-center mt-4">
-            <div className="flex items-center mb-2">
-              <span className="text-3xl font-bold mr-2">
-                {averageRating.toFixed(1)}
-              </span>
-              <div className="flex">
-                {Array(5)
-                  .fill(null)
-                  .map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-5 w-5 ${
-                        i < Math.round(averageRating)
-                          ? "fill-yellow-400 text-yellow-400"
-                          : "fill-gray-200 text-gray-200"
-                      }`}
-                    />
-                  ))}
-              </div>
+      <div className="grid gap-8 md:grid-cols-3">
+        {/* Rating Summary Card */}
+        <div className="md:col-span-1">
+          <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Rating Summary
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Overall client satisfaction
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground mb-6">
-              Based on {reviews.length} reviews
-            </p>
-            <div className="w-full space-y-2">
-              {[5, 4, 3, 2, 1].map((rating) => (
-                <div key={rating} className="flex items-center">
-                  <div className="flex items-center w-12">
-                    <span className="text-sm font-medium">{rating}</span>
-                    <Star className="h-4 w-4 ml-1 fill-yellow-400 text-yellow-400" />
+            <div className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-4xl font-bold text-gray-900 dark:text-white">
+                    {averageRating}
                   </div>
-                  <div className="flex-1 h-2 mx-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-yellow-400 rounded-full"
-                      style={{
-                        width: `${
-                          (ratingCounts[rating] / reviews.length) * 100
-                        }%`,
-                      }}
-                    ></div>
+                  <div className="mt-1 flex">
+                    {Array(5)
+                      .fill(null)
+                      .map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-4 w-4 ${
+                            i < Math.round(averageRating)
+                              ? "fill-yellow-400 text-yellow-400"
+                              : "fill-gray-200 text-gray-200 dark:fill-gray-700 dark:text-gray-700"
+                          }`}
+                        />
+                      ))}
                   </div>
-                  <span className="text-sm text-muted-foreground w-8 text-right">
-                    {ratingCounts[rating]}
-                  </span>
+                  <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Based on {totalReviews} reviews
+                  </div>
                 </div>
-              ))}
+                <div className="h-16 w-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                  <Star className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-2">
+                {distribution.map((item) => (
+                  <div key={item.rating} className="flex items-center">
+                    <div className="w-8 text-sm text-gray-600 dark:text-gray-400">
+                      {item.rating} <Star className="inline-block h-3 w-3" />
+                    </div>
+                    <div className="ml-2 flex-1">
+                      <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+                        <div
+                          className="h-2 rounded-full bg-purple-600 dark:bg-purple-500"
+                          style={{ width: `${item.percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    <div className="ml-2 w-9 text-right text-sm text-gray-600 dark:text-gray-400">
+                      {item.count}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 gap-4">
+                <div className="rounded-lg bg-gray-50 dark:bg-gray-900/50 p-3 text-center">
+                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {reviews.filter((r) => r.reply).length}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Replied
+                  </div>
+                </div>
+                <div className="rounded-lg bg-gray-50 dark:bg-gray-900/50 p-3 text-center">
+                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {reviews.filter((r) => !r.reply).length}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Awaiting Reply
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Reviews List */}
-        <div className="border rounded-lg shadow-sm p-4 md:col-span-2">
-          <h2 className="text-lg font-bold">Client Reviews</h2>
-          <p className="text-muted-foreground">
-            What your clients are saying about you
-          </p>
+        <div className="md:col-span-2">
           {/* Tabs */}
-          <div className="mt-4">
-            <div className="grid w-full grid-cols-3 gap-2">
-              <button
-                onClick={() => setActiveTab("all")}
-                className={`px-4 py-2 rounded ${
-                  activeTab === "all"
-                    ? "bg-gray-300"
-                    : "bg-gray-100 hover:bg-gray-200"
-                }`}
-              >
-                All Reviews
-              </button>
-              <button
-                onClick={() => setActiveTab("unreplied")}
-                className={`px-4 py-2 rounded ${
-                  activeTab === "unreplied"
-                    ? "bg-gray-300"
-                    : "bg-gray-100 hover:bg-gray-200"
-                }`}
-              >
-                Needs Reply
-              </button>
-              <button
-                onClick={() => setActiveTab("replied")}
-                className={`px-4 py-2 rounded ${
-                  activeTab === "replied"
-                    ? "bg-gray-300"
-                    : "bg-gray-100 hover:bg-gray-200"
-                }`}
-              >
-                Replied
-              </button>
-            </div>
+          <div className="mb-6 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+            <ul className="flex flex-nowrap -mb-px text-sm font-medium text-center">
+              <li className="mr-2">
+                <button
+                  onClick={() => setActiveTab("all")}
+                  className={`inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg ${
+                    activeTab === "all"
+                      ? "text-purple-600 dark:text-purple-500 border-purple-600 dark:border-purple-500"
+                      : "border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300"
+                  }`}
+                >
+                  All Reviews
+                </button>
+              </li>
+              <li className="mr-2">
+                <button
+                  onClick={() => setActiveTab("unreplied")}
+                  className={`inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg ${
+                    activeTab === "unreplied"
+                      ? "text-purple-600 dark:text-purple-500 border-purple-600 dark:border-purple-500"
+                      : "border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300"
+                  }`}
+                >
+                  Awaiting Reply
+                </button>
+              </li>
+              <li className="mr-2">
+                <button
+                  onClick={() => setActiveTab("replied")}
+                  className={`inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg ${
+                    activeTab === "replied"
+                      ? "text-purple-600 dark:text-purple-500 border-purple-600 dark:border-purple-500"
+                      : "border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300"
+                  }`}
+                >
+                  Replied
+                </button>
+              </li>
+              <li className="mr-2">
+                <button
+                  onClick={() => setActiveTab("positive")}
+                  className={`inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg ${
+                    activeTab === "positive"
+                      ? "text-purple-600 dark:text-purple-500 border-purple-600 dark:border-purple-500"
+                      : "border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300"
+                  }`}
+                >
+                  Positive
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => setActiveTab("negative")}
+                  className={`inline-flex items-center justify-center p-4 border-b-2 rounded-t-lg ${
+                    activeTab === "negative"
+                      ? "text-purple-600 dark:text-purple-500 border-purple-600 dark:border-purple-500"
+                      : "border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300"
+                  }`}
+                >
+                  Negative
+                </button>
+              </li>
+            </ul>
+          </div>
 
-            <div className="mt-6 space-y-6">
-              {filteredReviews.length > 0 ? (
-                filteredReviews.map((review) => (
-                  <div key={review.id} className="rounded-lg border p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3">
-                        {/* Simple Avatar */}
-                        <div className="h-10 w-10 rounded-full overflow-hidden">
+          {/* Reviews */}
+          <div className="space-y-6">
+            {filteredReviews.length > 0 ? (
+              filteredReviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden"
+                >
+                  <div className="p-6">
+                    <div className="flex items-start">
+                      <div className="mr-4 h-10 w-10 rounded-full overflow-hidden">
+                        <img
+                          src={`http://localhost:3000${review.users?.profileImage}`}
+                          alt={review.users?.name || "User"}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                          <h3 className="font-medium text-gray-900 dark:text-white">
+                            {review.users?.name || "Anonymous"}
+                          </h3>
+                          {review.sessionType && (
+                            <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-900/50 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:text-gray-300 mt-1 sm:mt-0">
+                              {review.sessionType}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex">
+                            {Array(5)
+                              .fill(null)
+                              .map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`h-4 w-4 ${
+                                    i < review.rating
+                                      ? "fill-yellow-400 text-yellow-400"
+                                      : "fill-gray-200 text-gray-200 dark:fill-gray-700 dark:text-gray-700"
+                                  }`}
+                                />
+                              ))}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 sm:mt-0">
+                            {dayjs(review.createdAt).format("YYYY-MM-DD")}
+                          </p>
+                        </div>
+                        <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+                          {review.comment}
+                        </p>
+
+                        {/* Review Actions */}
+                        <div className="mt-4 flex items-center gap-4">
+                          <button className="inline-flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                            <ThumbsUp className="mr-1 h-3.5 w-3.5" />
+                            Helpful
+                          </button>
+                          <button className="inline-flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                            <Flag className="mr-1 h-3.5 w-3.5" />
+                            Report
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reply Section */}
+                  {review.reply ? (
+                    <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-6">
+                      <div className="flex">
+                        <div className="mr-4 h-8 w-8 rounded-full overflow-hidden">
                           <img
-                            src={review.clientImage}
-                            alt={review.clientName}
+                            src={`http://localhost:3000${review.users?.profileImage}`}
+                            alt={review.users?.name || "User"}
                             className="h-full w-full object-cover"
                           />
                         </div>
                         <div>
-                          <h3 className="font-medium">{review.clientName}</h3>
-                          <div className="flex items-center gap-2">
-                            <div className="flex">
-                              {Array(5)
-                                .fill(null)
-                                .map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`h-4 w-4 ${
-                                      i < review.rating
-                                        ? "fill-yellow-400 text-yellow-400"
-                                        : "fill-gray-200 text-gray-200"
-                                    }`}
-                                  />
-                                ))}
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {review.date} • {review.bookingType}
+                          <div className="flex items-center">
+                            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                              Your Reply
+                            </h4>
+                            <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                              {dayjs(review.reply.date).format("YYYY-MM-DD")}
                             </span>
                           </div>
+                          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            {review.reply.text}
+                          </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => {
-                          setReportReview(review);
-                          setShowReportModal(true);
-                        }}
-                        className="h-8 w-8 text-gray-500 hover:text-gray-700"
-                      >
-                        <Flag className="h-4 w-4" />
-                      </button>
                     </div>
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      {review.comment}
-                    </p>
-
-                    {review.replied && (
-                      <div className="mt-4 rounded-md bg-gray-50 p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <MessageSquare className="h-4 w-4 text-purple-600" />
-                          <span className="text-sm font-medium">
-                            Your Reply
-                          </span>
+                  ) : (
+                    <div className="border-t border-gray-200 dark:border-gray-700 p-6">
+                      {replyingTo === review.id ? (
+                        <div>
+                          <div className="mb-2 flex items-center justify-between">
+                            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                              Write a Reply
+                            </h4>
+                            <button
+                              onClick={() => setReplyingTo(null)}
+                              className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          <textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Write your reply here..."
+                            className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white focus:border-purple-500 dark:focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                            rows={3}
+                          ></textarea>
+                          <div className="mt-2 flex justify-end">
+                            <button
+                              onClick={() => handleReplySubmit(review.id)}
+                              className="inline-flex items-center justify-center rounded-md bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                            >
+                              Send Reply
+                            </button>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {review.reply}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="mt-4 flex justify-between">
-                      <button className="text-gray-500 hover:text-gray-700 text-sm flex items-center">
-                        <ThumbsUp className="mr-1 h-4 w-4" />
-                        Helpful
-                      </button>
-                      {!review.replied && (
+                      ) : (
                         <button
-                          onClick={() => {
-                            setReplyingTo(review.id);
-                            setReplyText("");
-                          }}
-                          className="border rounded px-2 py-1 text-sm text-purple-600"
+                          onClick={() => setReplyingTo(review.id)}
+                          className="inline-flex items-center justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:ring-offset-2"
                         >
-                          <MessageSquare className="mr-1 h-4 w-4" />
-                          Reply
+                          <MessageSquare className="mr-1 h-3.5 w-3.5" />
+                          Reply to Review
                         </button>
                       )}
                     </div>
-
-                    {replyingTo === review.id && (
-                      <div className="mt-4">
-                        <textarea
-                          placeholder="Write your reply..."
-                          className="min-h-[100px] mb-2 w-full rounded border border-gray-300 px-3 py-2 text-sm"
-                          value={replyText}
-                          onChange={(e) => setReplyText(e.target.value)}
-                        ></textarea>
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => {
-                              setReplyingTo(null);
-                              setReplyText("");
-                            }}
-                            className="border rounded px-4 py-2 text-sm"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => handleReplySubmit(review.id)}
-                            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm"
-                            disabled={!replyText.trim()}
-                          >
-                            Submit Reply
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="flex h-60 flex-col items-center justify-center rounded-lg border border-dashed">
-                  <Star className="h-12 w-12 text-gray-300" />
-                  <h3 className="mt-4 text-lg font-medium">No reviews found</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {searchTerm
-                      ? "Try adjusting your search terms"
-                      : activeTab === "unreplied"
-                      ? "You've replied to all reviews!"
-                      : "No reviews match the selected filter"}
-                  </p>
+                  )}
                 </div>
-              )}
-            </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-12 text-center">
+                <div className="rounded-full bg-gray-100 dark:bg-gray-700 p-3">
+                  <Star className="h-6 w-6 text-gray-500 dark:text-gray-400" />
+                </div>
+                <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
+                  No reviews found
+                </h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {activeTab === "all"
+                    ? "You don't have any reviews yet."
+                    : `You don't have any ${activeTab} reviews.`}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Report Review Modal */}
-      {showReportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium">Report Review</h3>
-              <button
-                onClick={() => setShowReportModal(false)}
-                className="text-gray-600 hover:text-gray-800"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="rounded-md bg-gray-50 p-3">
-                <p className="text-sm text-muted-foreground">
-                  {reportReview?.comment}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="report-reason" className="text-sm font-medium">
-                  Reason for reporting
-                </label>
-                <select
-                  id="report-reason"
-                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-                  value={reportReason}
-                  onChange={(e) => setReportReason(e.target.value)}
-                >
-                  <option value="">Select a reason</option>
-                  <option value="inappropriate">Inappropriate content</option>
-                  <option value="spam">Spam or misleading</option>
-                  <option value="not-client">Not a real client</option>
-                  <option value="other">Other reason</option>
-                </select>
-              </div>
-              {reportReason === "other" && (
-                <div className="space-y-2">
-                  <label
-                    htmlFor="report-details"
-                    className="text-sm font-medium"
-                  >
-                    Additional details
-                  </label>
-                  <textarea
-                    id="report-details"
-                    placeholder="Please provide more information..."
-                    className="min-h-[100px] w-full rounded border border-gray-300 px-3 py-2 text-sm"
-                  ></textarea>
-                </div>
-              )}
-              <div className="flex justify-end gap-2 mt-4">
-                <button
-                  onClick={() => setShowReportModal(false)}
-                  className="border rounded px-4 py-2 text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleReportSubmit}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-                  disabled={!reportReason}
-                >
-                  Submit Report
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </DashboardLayout>
   );
 }

@@ -53,9 +53,9 @@ export default function UsersPage() {
                 Manage all users on the platform
               </p>
             </div>
-            <button className="mt-4 sm:mt-0 bg-purple-600 hover:bg-purple-700 shadow py-2 px-4 rounded text-white font-medium flex items-center">
+            {/* <button className="mt-4 sm:mt-0 bg-purple-600 hover:bg-purple-700 shadow py-2 px-4 rounded text-white font-medium flex items-center">
               <UserPlus className="mr-2 h-4 w-4" /> Add New User
-            </button>
+            </button> */}
           </div>
 
           <div className="rounded-lg border shadow-sm bg-white">
@@ -224,7 +224,7 @@ export default function UsersPage() {
           </div>
         </main>
       </div>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 }

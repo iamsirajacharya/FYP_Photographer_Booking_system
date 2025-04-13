@@ -219,3 +219,61 @@ exports.refreshToken = catchAsync(async (req, res) => {
 
   res.json({ message: "Token refreshed", token: newToken });
 });
+
+// Update user profile
+exports.updateProfile = catchAsync(async (req, res) => {
+  const userId = req.userId;
+  const { name, email, phone } = req.body;
+
+  // const profileImage = req.file ? req.file.path : null;
+
+  const user = await User.findByPk(userId);
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+  const profileImage = req.file
+    ? `/uploads/${req.file.filename}`
+    : user.profileImage;
+  // Update user; if no file was uploaded, keep the existing profileImage.
+  await user.update({
+    name,
+    email,
+    phone,
+    profileImage: profileImage || user.profileImage,
+  });
+
+  res.json({
+    message: "Profile updated successfully",
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      profileImage: user.profileImage,
+    },
+  });
+});
+
+// Update password
+exports.updatePassword = catchAsync(async (req, res) => {
+  const userId = req.userId;
+  const { currentPassword, newPassword } = req.body;
+
+  const user = await User.findByPk(userId);
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  // Verify current password
+  const isPasswordValid = await user.comparePassword(currentPassword);
+  if (!isPasswordValid) {
+    return res.status(401).json({ message: "Current password is incorrect" });
+  }
+
+  // Update password (the hook in the User model will hash the new password)
+  await user.update({ password: newPassword });
+
+  res.json({ message: "Password updated successfully" });
+});

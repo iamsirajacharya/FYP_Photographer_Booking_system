@@ -39,7 +39,7 @@ export default function AdminDashboardPage() {
   const [rejectPhotographer] = useRejectPhotographerApplicationMutation();
 
   // Local state for section and viewing a user detail
-  const [activeSection, setActiveSection] = useState("applications");
+  const [activeSection, setActiveSection] = useState("users");
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
 
@@ -183,7 +183,7 @@ export default function AdminDashboardPage() {
 
             {/* Section Switcher */}
             <div className="mt-8 mb-4 flex items-center justify-center gap-2">
-              <button
+              {/* <button
                 className={`px-4 py-2 rounded-md font-medium ${
                   activeSection === "applications"
                     ? "bg-purple-600 text-white"
@@ -192,7 +192,7 @@ export default function AdminDashboardPage() {
                 onClick={() => setActiveSection("applications")}
               >
                 Photographer Applications
-              </button>
+              </button> */}
               <button
                 className={`px-4 py-2 rounded-md font-medium ${
                   activeSection === "users"
@@ -340,12 +340,12 @@ export default function AdminDashboardPage() {
                                   <Eye className="mr-1 h-4 w-4" />
                                   View
                                 </button>
-                                <button className="px-3 py-1 rounded border text-sm text-blue-500 hover:bg-blue-50">
+                                {/* <button className="px-3 py-1 rounded border text-sm text-blue-500 hover:bg-blue-50">
                                   Edit
                                 </button>
                                 <button className="px-3 py-1 rounded border text-sm text-red-500 hover:bg-red-50">
                                   Delete
-                                </button>
+                                </button> */}
                               </div>
                             </td>
                           </tr>

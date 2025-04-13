@@ -15,7 +15,6 @@ module.exports = (sequelize, DataTypes) => {
           key: "id",
         },
         onDelete: "CASCADE",
-        onUpdate: "CASCADE", 
       },
       specialty: {
         type: DataTypes.STRING,
@@ -52,6 +51,7 @@ module.exports = (sequelize, DataTypes) => {
       portfolioImages: {
         type: DataTypes.JSON, // Use JSON instead of TEXT
         allowNull: true,
+        defaultValue: [],
       },
       averageRating: {
         type: DataTypes.FLOAT,

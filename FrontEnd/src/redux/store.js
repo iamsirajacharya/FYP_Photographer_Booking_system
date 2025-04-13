@@ -7,7 +7,10 @@ import { authApi } from "./api/authApi";
 import { adminApi } from "./api/adminApi";
 import { photographerApi } from "./api/photographerApi";
 import { bookingApi } from "./api/bookingApi";
+import { reviewApiSlice } from "./api/reviewApi";
+import { messageApi } from "./api/messageApi";
 import authReducer from "./slices/authSlice";
+import messageReducer from "./slices/mesageSlice";
 
 // Configure Redux Persist
 const persistConfig = {
@@ -22,7 +25,10 @@ const rootReducer = combineReducers({
   [adminApi.reducerPath]: adminApi.reducer,
   [photographerApi.reducerPath]: photographerApi.reducer,
   [bookingApi.reducerPath]: bookingApi.reducer,
+  [reviewApiSlice.reducerPath]: reviewApiSlice.reducer,
+  [messageApi.reducerPath]: messageApi.reducer,
   auth: authReducer,
+  messages: messageReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -38,7 +44,7 @@ export const store = configureStore({
           "persist/REGISTER",
         ],
       },
-    }).concat(apiSlice.middleware, authApi.middleware),
+    }).concat(apiSlice.middleware, authApi.middleware, messageApi.middleware),
   devTools: process.env.NODE_ENV !== "production",
 });
 

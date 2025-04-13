@@ -5,6 +5,7 @@ import {
   Heart,
   Home,
   MapPin,
+  MessageSquare,
   Menu,
   Search,
   Calendar,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../src/redux/slices/authSlice";
+import MessageNotification from "./MessageNotification";
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -24,6 +26,7 @@ export function Header() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+  const { unreadCount } = useSelector((state) => state.messages);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -98,11 +101,25 @@ export function Header() {
               <Camera className="h-4 w-4" />
               Become a Photographer
             </Link>
+            <Link
+              to="/messages"
+              className="flex items-center gap-1.5 text-sm font-medium text-gray-700 transition-colors hover:text-purple-600"
+              onClick={() => setIsProfileMenuOpen(false)}
+            >
+              <MessageSquare className="h-4 w-4" />
+              Messages
+              {unreadCount > 0 && (
+                <span className="ml-auto rounded-full bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 text-xs font-medium text-purple-800 dark:text-purple-300">
+                  {unreadCount}
+                </span>
+              )}
+            </Link>
           </nav>
         </div>
 
         {/* Right section (User Profile) */}
         <div className="flex items-center gap-4">
+          <MessageNotification />
           <div className="relative" ref={profileMenuRef}>
             <button
               className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-gray-50 transition-all hover:border-purple-400 hover:ring-2 hover:ring-purple-100"
@@ -148,7 +165,7 @@ export function Header() {
                       Photographer Dashboard
                     </Link>
                   )}
-                <Link
+                {/* <Link
                   to="/favorites"
                   className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                   onClick={() => setIsProfileMenuOpen(false)}
@@ -163,7 +180,7 @@ export function Header() {
                 >
                   <Settings className="mr-3 h-4 w-4 text-gray-500" />
                   Settings
-                </Link>
+                </Link> */}
                 <div className="border-t border-gray-100 mt-1">
                   <button
                     onClick={handleLogout}

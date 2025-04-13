@@ -23,14 +23,14 @@ module.exports = (sequelize, DataTypes) => {
           key: "id",
         },
       },
-      bookingId: {
-        type: DataTypes.UUID,
-        allowNull: false,
-        references: {
-          model: "Bookings",
-          key: "id",
-        },
-      },
+      // bookingId: {
+      //   type: DataTypes.UUID,
+      //   allowNull: true, // Changed to allow null
+      //   references: {
+      //     model: "Bookings",
+      //     key: "id",
+      //   },
+      // },
       rating: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -69,16 +69,18 @@ module.exports = (sequelize, DataTypes) => {
             }
           );
 
-          // Mark booking as rated
-          await sequelize.models.Booking.update(
-            {
-              isRated: true,
-            },
-            {
-              where: { id: review.bookingId },
-              transaction: options.transaction,
-            }
-          );
+          // Mark booking as rated if bookingId exists
+          // if (review.bookingId) {
+          //   await sequelize.models.Booking.update(
+          //     {
+          //       isRated: true,
+          //     },
+          //     {
+          //       where: { id: review.bookingId },
+          //       transaction: options.transaction,
+          //     }
+          //   );
+          // }
         },
       },
     }
@@ -93,11 +95,6 @@ module.exports = (sequelize, DataTypes) => {
     Review.belongsTo(models.Photographer, {
       foreignKey: "photographerId",
       as: "photographer",
-    });
-
-    Review.belongsTo(models.Booking, {
-      foreignKey: "bookingId",
-      as: "booking",
     });
   };
 

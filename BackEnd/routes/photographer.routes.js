@@ -29,5 +29,17 @@ router.get("/reviews/me", photographerController.getPhotographerReviews);
 router.get("/earnings/me", photographerController.getPhotographerEarnings);
 router.put("/availability", photographerController.updateAvailability);
 router.get("/:id/availability", photographerController.getAvailability);
+router.get("/:id/portfolio", photographerController.getPortfolio);
+
+router.delete(
+  "/portfolio/:imageId",
+  photographerController.deletePortfolioImage
+);
+
+router.post(
+  "/portfolio",
+  uploadPortfolioImages,
+  photographerController.uploadPortfolioImage
+);
 
 module.exports = router;

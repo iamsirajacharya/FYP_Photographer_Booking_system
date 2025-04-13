@@ -10,13 +10,22 @@ export const bookingApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["Booking"],
     }),
+    // getClientBookings: builder.query({
+    //   query: (params) => ({
+    //     url: "/bookings/me",
+    //     params,
+    //   }),
+    //   providesTags: ["Booking"],
+    // }),
     getClientBookings: builder.query({
       query: (params) => ({
-        url: "/bookings",
+        url: "/bookings/me",
         params,
       }),
+      transformResponse: (response) => response.bookings, // return only the bookings array
       providesTags: ["Booking"],
     }),
+
     getBookingDetails: builder.query({
       query: (id) => `/bookings/${id}`,
       providesTags: (result, error, id) => [{ type: "Booking", id }],
@@ -32,26 +41,17 @@ export const bookingApi = apiSlice.injectEndpoints({
         "Booking",
       ],
     }),
-    createReview: builder.mutation({
-      query: ({ bookingId, rating, comment }) => ({
-        url: `/bookings/${bookingId}/review`,
+    processPayment: builder.mutation({
+      query: ({ bookingId, paymentMethod, transactionId }) => ({
+        url: `/bookings/${bookingId}/payment`,
         method: "POST",
-        body: { rating, comment },
+        body: {
+          paymentMethod,
+          transactionId,
+        },
       }),
       invalidatesTags: (result, error, { bookingId }) => [
         { type: "Booking", id: bookingId },
-        "Review",
-        "Booking",
-      ],
-    }),
-    processPayment: builder.mutation({
-      query: ({ id, paymentMethod, transactionId }) => ({
-        url: `/bookings/${id}/payment`,
-        method: "POST",
-        body: { paymentMethod, transactionId },
-      }),
-      invalidatesTags: (result, error, { id }) => [
-        { type: "Booking", id },
         "Booking",
       ],
     }),
@@ -78,7 +78,7 @@ export const {
   useGetClientBookingsQuery,
   useGetBookingDetailsQuery,
   useUpdateBookingStatusMutation,
-  useCreateReviewMutation,
+  // useCreateReviewMutation,
   useProcessPaymentMutation,
   useGetPhotographerBookingsQuery,
   useGetAllBookingsQuery,

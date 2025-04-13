@@ -11,9 +11,12 @@ const userRoutes = require("./routes/user.routes");
 const photographerRoutes = require("./routes/photographer.routes");
 const bookingRoutes = require("./routes/booking.routes");
 const adminRoutes = require("./routes/admin.routes");
+const reviewRoutes = require("./routes/review.routes");
+const messageRoutes = require("./routes/message.routes");
 const { errorHandler } = require("./middleware/errorHandler");
 const { socketAuthMiddleware } = require("./middleware/socketAuth");
 const morgan = require("morgan");
+const path = require("path");
 
 // Load environment variables
 dotenv.config();
@@ -43,16 +46,19 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
 // Logging middleware
 app.use(morgan("combined"));
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
+// app.use("/api/users", userRoutes);
 app.use("/api/photographers", photographerRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/messages", messageRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
@@ -74,25 +80,83 @@ io.on("connection", (socket) => {
   // Handle chat messages
   socket.on("send_message", async (data) => {
     try {
-      const { recipientId, message } = data;
+      const { recipientId, content } = data;
 
       // Save message to database
       const newMessage = await db.Message.create({
         senderId: socket.userId,
         recipientId,
-        content: message,
+        content,
         read: false,
+      });
+
+      // Get sender info
+      const sender = await db.User.findByPk(socket.userId, {
+        attributes: ["id", "name", "profileImage"],
       });
 
       // Emit to recipient
       io.to(`user:${recipientId}`).emit("receive_message", {
         id: newMessage.id,
         senderId: socket.userId,
-        content: message,
+        recipientId,
+        content,
         createdAt: newMessage.createdAt,
+        read: false,
+        sender: {
+          id: sender.id,
+          name: sender.name,
+          profileImage: sender.profileImage,
+        },
+      });
+
+      // Emit to sender for confirmation
+      socket.emit("message_sent", {
+        id: newMessage.id,
+        senderId: socket.userId,
+        recipientId,
+        content,
+        createdAt: newMessage.createdAt,
+        read: false,
       });
     } catch (error) {
       console.error("Message error:", error);
+      socket.emit("message_error", { error: "Failed to send message" });
+    }
+  });
+
+  // Handle typing indicator
+  socket.on("typing", (data) => {
+    const { recipientId, isTyping } = data;
+    io.to(`user:${recipientId}`).emit("user_typing", {
+      userId: socket.userId,
+      isTyping,
+    });
+  });
+
+  // Handle read receipts
+  socket.on("mark_read", async (data) => {
+    try {
+      const { conversationId } = data;
+
+      // Update messages in database
+      await db.Message.update(
+        { read: true, readAt: new Date() },
+        {
+          where: {
+            senderId: conversationId,
+            recipientId: socket.userId,
+            read: false,
+          },
+        }
+      );
+
+      // Notify the sender that their messages were read
+      io.to(`user:${conversationId}`).emit("messages_read", {
+        by: socket.userId,
+      });
+    } catch (error) {
+      console.error("Mark read error:", error);
     }
   });
 
@@ -118,6 +182,27 @@ io.on("connection", (socket) => {
     console.log("User disconnected:", socket.userId);
   });
 });
+
+const defaultSpecialties = [
+  'Portrait',
+  'Wedding',
+  'Event',
+  'Family',
+  'Commercial',
+  'Landscape',
+  'Fine Art',
+  'Fashion',
+  'Sports',
+  'Product',
+];
+
+const Specialty = require('./models').Specialty; // update path as needed
+
+async function insertDefaultSpecialties() {
+  for (const name of defaultSpecialties) {
+    await Specialty.findOrCreate({ where: { name } });
+  }
+}
 
 // Database synchronization and server start
 const PORT = process.env.PORT;

@@ -48,6 +48,13 @@ const uploadPortfolioImages = multer({
   limits,
 }).array("portfolioImages", 6); // Max 6 images
 
+const uploadProfileImage = multer({
+  storage,
+  fileFilter,
+  limits,
+}).single("profileImage");
+
 module.exports = {
   uploadPortfolioImages,
+  uploadProfileImage,
 };

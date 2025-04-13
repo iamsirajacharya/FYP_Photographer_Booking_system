@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Register from "../src/components/Authentication/Register";
 import Login from "../src/components/Authentication/Login";
 import { useDispatch } from "react-redux";
@@ -10,7 +10,10 @@ import PhotographerBookingsPage from "./photographer/bookings/page";
 import PhotographerAvailabilityPage from "./photographer/availability/page";
 import PhotographerPortfolioPage from "./photographer/portfolio/page";
 import PhotographerReviewsPage from "./photographer/reviews/page";
+import PhotographerProfilePage from "./photographer/profile/page";
+import PhotographerMessagesPage from "./photographer/messages/page";
 // import PhotographerDashboard from "./photographer/PhotographerDashboard";
+import ClientMessagesPage from "./components/ClientMessage/page";
 import Home from "./page";
 import ApplyPage from "./apply/page";
 import MapPage from "./map/page";
@@ -26,6 +29,7 @@ import AdminPhotographersPage from "./admin/photographers/page";
 import { useGetCurrentUserQuery } from "./redux/api/authApi";
 
 function App() {
+  // const navigate = useNavigate();
   const dispatch = useDispatch();
   const { data, isSuccess } = useGetCurrentUserQuery();
 
@@ -46,14 +50,10 @@ function App() {
 
   return (
     <Routes>
-      {/* <Route
-        path="/photographer/dashboard"
-        element={
-          <PrivateRoute>
-            <PhotographerDashboard />
-          </PrivateRoute>
-        }
-      /> */}
+      <Route path="/" element={<Navigate to="/login" />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/login" element={<Login />} />
+
       <Route
         path="/photographer/dashboard"
         element={
@@ -95,37 +95,22 @@ function App() {
           </PrivateRoute>
         }
       />
-      {/* <Route element={<PhotographerDashboardProtectedRoute />}>
-        <Route
-          path="/photographer/dashboard"
-          element={<PhotographerDashboard />}
-        />
-      </Route> */}
-
-      {/* <Route
-        path="/photographer/availability"
+      <Route
+        path="/photographer/profile"
         element={
           <PrivateRoute>
-            <PhotographerAvailabilityPage />
+            <PhotographerProfilePage />
           </PrivateRoute>
         }
-      /> */}
-      {/* <Route
-        path="/photographer/portfolio"
+      />
+      <Route
+        path="/photographer/messages"
         element={
           <PrivateRoute>
-            <PhotographerPortfolioPage />
+            <PhotographerMessagesPage />
           </PrivateRoute>
         }
-      /> */}
-      {/* <Route
-        path="/photographer/bookings"
-        element={
-          <PrivateRoute>
-            <PhotographerBookingsPage />
-          </PrivateRoute>
-        }
-      /> */}
+      />
       <Route
         path="/user/dashboard"
         element={
@@ -142,8 +127,14 @@ function App() {
           </PrivateRoute>
         }
       />
-      <Route path="/register" element={<Register />} />
-      <Route path="/login" element={<Login />} />
+      <Route
+        path="/messages"
+        element={
+          <PrivateRoute>
+            <ClientMessagesPage />
+          </PrivateRoute>
+        }
+      />
       <Route
         path="/photographers"
         element={
@@ -152,7 +143,7 @@ function App() {
           </PrivateRoute>
         }
       />
-      {/* <Route path="/photographers/:id" element={<PhotographerDetailPage />} /> */}
+
       <Route
         path="/map"
         element={

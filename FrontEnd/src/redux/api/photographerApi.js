@@ -1,3 +1,4 @@
+// photographerApi.js
 import { apiSlice } from "./apiSlice";
 
 export const photographerApi = apiSlice.injectEndpoints({
@@ -9,24 +10,13 @@ export const photographerApi = apiSlice.injectEndpoints({
       }),
       providesTags: ["Photographer"],
     }),
-    // getPhotographerById: builder.query({
-    //   query: (id) => `/photographers/${id}`,
-    //   providesTags: (result, error, id) => [{ type: "Photographer", id }],
-    // }),
-
-    // getPhotographerById: builder.query({
-    //   query: (id) => `/photographers/${id}`,
-    //   transformResponse: (response) => response.photographer, // Now the hook returns the photographer directly
-    //   providesTags: (result, error, id) => [{ type: "Photographer", id }],
-    // }),
 
     getPhotographerDetails: builder.query({
       query: (id) => ({
-        url: `photographers/${id}`,
+        url: `/photographers/${id}`,
         method: "GET",
       }),
       transformResponse: (response) => {
-        // Transform the response to ensure all fields are present
         return {
           ...response.photographer,
           availability: response.availability,
@@ -47,19 +37,23 @@ export const photographerApi = apiSlice.injectEndpoints({
       query: (id) => `/photographers/${id}/portfolio`,
       providesTags: (result, error, id) => [{ type: "Photographer", id }],
     }),
+
+    // Updated: Use the reviews endpoint defined in review.routes.js
     getPhotographerReviews: builder.query({
-      query: (id) => `/photographers/${id}/reviews`,
+      query: (id) => `/reviews/photographer/${id}`,
       providesTags: (result, error, id) => [
         { type: "Photographer", id },
         "Review",
       ],
     }),
+
     getPhotographerAvailability: builder.query({
       query: ({ id, date }) => ({
         url: `/photographers/${id}/availability`,
         params: { date },
       }),
     }),
+
     applyAsPhotographer: builder.mutation({
       query: (photographerData) => ({
         url: "/photographers/apply",
@@ -67,23 +61,33 @@ export const photographerApi = apiSlice.injectEndpoints({
         body: photographerData,
       }),
     }),
+
+    // updatePhotographerProfile: builder.mutation({
+    //   query: (photographerData) => ({
+    //     url: "/photographers/profile",
+    //     method: "PUT",
+    //     body: photographerData,
+    //   }),
+    //   invalidatesTags: ["Photographer"],
+    // }),
     updatePhotographerProfile: builder.mutation({
       query: (photographerData) => ({
-        url: "/photographers/profile",
+        url: "/photographers/profile/me", // updated URL to match your router
         method: "PUT",
         body: photographerData,
       }),
       invalidatesTags: ["Photographer"],
     }),
+
     uploadPortfolioImage: builder.mutation({
       query: (formData) => ({
         url: "/photographers/portfolio",
         method: "POST",
         body: formData,
-        formData: true,
       }),
       invalidatesTags: ["Photographer"],
     }),
+
     deletePortfolioImage: builder.mutation({
       query: (imageId) => ({
         url: `/photographers/portfolio/${imageId}`,
@@ -91,13 +95,13 @@ export const photographerApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["Photographer"],
     }),
+
     updateAvailability: builder.mutation({
       query: (availabilityData) => ({
         url: "/photographers/availability",
         method: "PUT",
         body: availabilityData,
       }),
-      // Invalidate the Photographer tag so any cached data is refreshed
       invalidatesTags: ["Photographer"],
     }),
   }),
@@ -105,7 +109,6 @@ export const photographerApi = apiSlice.injectEndpoints({
 
 export const {
   useGetPhotographersQuery,
-  // useGetPhotographerByIdQuery,
   useGetPhotographerDetailsQuery,
   useGetPhotographerPortfolioQuery,
   useGetPhotographerReviewsQuery,
@@ -115,4 +118,5 @@ export const {
   useUploadPortfolioImageMutation,
   useDeletePortfolioImageMutation,
   useUpdateAvailabilityMutation,
+  useBookPhotographerMutation, // if needed
 } = photographerApi;

@@ -209,7 +209,7 @@ exports.getAllPhotographers = catchAsync(async (req, res) => {
     attributes: ["id", "name", "email", "profileImage", "role"],
     where: {
       // Only include users with role: "photographer"
-      // role: "photographer",
+      role: "photographer",
     },
   };
 
@@ -288,6 +288,7 @@ exports.getPhotographerDetails = catchAsync(async (req, res) => {
       {
         model: Review,
         as: "reviews",
+        attributes: { exclude: ["bookingId"] }, // Exclude the unwanted column
         include: [
           {
             model: User,
@@ -625,11 +626,33 @@ exports.getPhotographerEarnings = catchAsync(async (req, res) => {
     raw: true,
   });
 
+  // Get earnings by payment method
+  const earningsByPaymentMethod = await Booking.findAll({
+    attributes: [
+      "paymentMethod",
+      [db.sequelize.fn("SUM", db.sequelize.col("totalPrice")), "amount"],
+      [db.sequelize.fn("COUNT", db.sequelize.col("id")), "count"],
+    ],
+    where: {
+      photographerId: photographer.id,
+      status: {
+        [Op.in]: ["confirmed", "completed"],
+      },
+      date: {
+        [Op.between]: [startDate, endDate],
+      },
+    },
+    group: ["paymentMethod"],
+    order: [[db.sequelize.literal("amount"), "DESC"]],
+    raw: true,
+  });
+
   res.json({
     earningsByDate,
     totalEarnings,
     periodEarnings,
     earningsByType,
+    earningsByPaymentMethod,
   });
 });
 
@@ -735,4 +758,104 @@ exports.getAvailability = catchAsync(async (req, res) => {
   }
 
   res.json({ availability });
+});
+
+exports.getPortfolio = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const photographer = await Photographer.findByPk(id);
+  if (!photographer) {
+    return res.status(404).json({ message: "Photographer not found" });
+  }
+  // Assuming portfolioImages are stored as an array in the Photographer model.
+  const portfolioImages = photographer.portfolioImages || [];
+  res.json({ portfolioImages });
+});
+
+exports.deletePortfolioImage = catchAsync(async (req, res) => {
+  const userId = req.userId;
+  const { imageId } = req.params; // imageId is assumed to be the filename or unique identifier of the image
+
+  // Retrieve the authenticated photographer profile
+  const photographer = await Photographer.findOne({ where: { userId } });
+  if (!photographer) {
+    return res.status(404).json({ message: "Photographer profile not found" });
+  }
+
+  let portfolioImages = photographer.portfolioImages || [];
+
+  // Check if the image exists in the portfolio
+  if (!portfolioImages.includes(imageId)) {
+    return res.status(404).json({ message: "Portfolio image not found" });
+  }
+
+  // Remove the specified image from the portfolio array
+  portfolioImages = portfolioImages.filter((img) => img !== imageId);
+
+  // Update the photographer profile with the new portfolio images list
+  await photographer.update({ portfolioImages });
+
+  res.json({
+    message: "Portfolio image deleted successfully",
+    portfolioImages,
+  });
+});
+
+// Upload a new portfolio image
+// exports.uploadPortfolioImage = catchAsync(async (req, res) => {
+//   const userId = req.userId;
+//   const photographer = await Photographer.findOne({ where: { userId } });
+//   if (!photographer) {
+//     return res.status(404).json({ message: "Photographer profile not found" });
+//   }
+
+//   // Since multer is configured with .array("portfolioImages", 6), use req.files
+//   const files = req.files;
+//   if (!files || files.length === 0) {
+//     return res.status(400).json({ message: "No file uploaded" });
+//   }
+
+//   // Update the photographer's portfolioImages field.
+//   // If you only expect one file at a time, you could push files[0].filename,
+//   // but here we'll push all uploaded file names.
+//   let portfolioImages = photographer.portfolioImages || [];
+//   files.forEach((file) => {
+//     portfolioImages.push(file.filename);
+//   });
+
+//   await photographer.update({ portfolioImages });
+
+//   res.status(201).json({
+//     message: "Portfolio image(s) uploaded successfully",
+//     portfolioImages,
+//   });
+// });
+exports.uploadPortfolioImage = catchAsync(async (req, res) => {
+  const userId = req.userId;
+  const photographer = await Photographer.findOne({ where: { userId } });
+  if (!photographer) {
+    return res.status(404).json({ message: "Photographer profile not found" });
+  }
+
+  // Since multer is configured with .array("portfolioImages", 6), use req.files
+  const files = req.files;
+  if (!files || files.length === 0) {
+    return res.status(400).json({ message: "No file uploaded" });
+  }
+
+  // Retrieve existing portfolio images (should be an array)
+  let portfolioImages = photographer.portfolioImages || [];
+
+  // Append each file's filename to the array
+  files.forEach((file) => {
+    portfolioImages.push(file.filename);
+  });
+
+  // Update the photographer's portfolioImages using instance setter and then save
+  photographer.portfolioImages = portfolioImages;
+  await photographer.save();
+
+  res.status(201).json({
+    message: "Portfolio image(s) uploaded successfully",
+    portfolioImages,
+  });
 });

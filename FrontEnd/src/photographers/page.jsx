@@ -7,11 +7,14 @@ import {
 import PhotographerProfileModal from "./PhotographerProfileModal";
 import { Header } from "../../UI/header";
 
+// Define the backend URL – adjust this if needed
+const BACKEND_URL = "http://localhost:3000";
+
 export default function PhotographerPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPhotographerId, setSelectedPhotographerId] = useState(null);
 
-  // 1) Fetch all photographers from your backend
+  // Fetch all photographers from your backend
   const {
     data: photographerData,
     isLoading,
@@ -19,14 +22,13 @@ export default function PhotographerPage() {
     error,
   } = useGetPhotographersQuery();
 
-  // 2) If a photographer is selected, fetch their details
+  // If a photographer is selected, fetch their details
   const { data: photographerDetails } = useGetPhotographerDetailsQuery(
     selectedPhotographerId,
     { skip: !selectedPhotographerId }
   );
 
-  // 3) The backend returns an object: { photographers: [...] }
-  // so we destructure the 'photographers' array
+  // The backend returns an object: { photographers: [...] }
   const photographerList = photographerData?.photographers || [];
 
   // Filter photographers based on search term
@@ -172,16 +174,19 @@ export default function PhotographerPage() {
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredPhotographers.map((photographer) => {
-                // The name is stored under photographer.users?.name
                 const photographerName = photographer.users?.name || "No Name";
-                // The rating is stored in photographer.averageRating
                 const photographerRating =
                   photographer.averageRating?.toFixed(1) || "N/A";
-                // Show the first portfolio image if it exists
-                const displayImage =
-                  photographer.portfolioImages?.[0] ||
+                // Profile image is stored in photographer.users.profileImage.
+                // If it starts with "/uploads", prepend BACKEND_URL.
+                const rawProfileImage =
                   photographer.users?.profileImage ||
                   "/placeholder-profile.jpg";
+                const displayProfileImage = rawProfileImage.startsWith(
+                  "/uploads"
+                )
+                  ? `${BACKEND_URL}${rawProfileImage}`
+                  : rawProfileImage;
 
                 return (
                   <div
@@ -189,7 +194,7 @@ export default function PhotographerPage() {
                     className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow"
                   >
                     <img
-                      src={displayImage}
+                      src={displayProfileImage}
                       alt={photographerName}
                       className="w-full h-48 object-cover"
                     />
@@ -224,7 +229,7 @@ export default function PhotographerPage() {
         </div>
 
         {/* Photographer Profile Modal */}
-        {selectedPhotographerId && photographerDetails && (
+        {selectedPhotographerId && (
           <PhotographerProfileModal
             photographerId={selectedPhotographerId}
             isOpen={!!selectedPhotographerId}

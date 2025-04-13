@@ -52,7 +52,7 @@ export default function BookingsPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      {/* <Header /> */}
       <div className="flex flex-1">
         {/* Admin Sidebar */}
         <AdminSidebar />
@@ -362,7 +362,7 @@ export default function BookingsPage() {
           </div>
         </main>
       </div>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 }

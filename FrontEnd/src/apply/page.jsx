@@ -9,6 +9,8 @@ export default function ApplyPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [portfolioFiles, setPortfolioFiles] = useState([]);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [locationError, setLocationError] = useState(null);
   const navigate = useNavigate();
 
   // Hook from RTK Query to call the POST /photographers/apply endpoint
@@ -39,6 +41,9 @@ export default function ApplyPage() {
 
   // Automatically fetch and set the user's geolocation on mount
   useEffect(() => {
+    setLocationLoading(true);
+    setLocationError(null);
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -47,14 +52,28 @@ export default function ApplyPage() {
             ...prev,
             location: `${latitude},${longitude}`,
           }));
+          setLocationLoading(false);
         },
         (error) => {
           console.error("Error fetching geolocation: ", error);
-          // Optionally, you could set a default location or notify the user
+          setLocationError(
+            "Could not automatically detect your location. Please enter it manually."
+          );
+          setLocationLoading(false);
+
+          // Set a default location or leave it empty
+          // setFormData((prev) => ({
+          //   ...prev,
+          //   location: "0,0", // Default coordinates
+          // }));
         }
       );
     } else {
       console.error("Geolocation is not supported by this browser");
+      setLocationError(
+        "Your browser doesn't support geolocation. Please enter your location manually."
+      );
+      setLocationLoading(false);
     }
   }, []);
 
@@ -332,16 +351,37 @@ export default function ApplyPage() {
                       <label htmlFor="location" className="text-sm font-medium">
                         Location (Latitude,Longitude)
                       </label>
-                      <input
-                        id="location"
-                        name="location"
-                        placeholder="Auto-detected location"
-                        required
-                        value={formData.location}
-                        onChange={handleChange}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600"
-                        readOnly
-                      />
+                      <div className="relative">
+                        <input
+                          id="location"
+                          name="location"
+                          placeholder={
+                            locationLoading
+                              ? "Detecting your location..."
+                              : "Enter your location (latitude,longitude)"
+                          }
+                          required
+                          value={formData.location}
+                          onChange={handleChange}
+                          className={`w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-600 ${
+                            locationError ? "border-red-500" : ""
+                          }`}
+                          readOnly={locationLoading}
+                        />
+                        {locationLoading && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-purple-600 border-t-transparent"></div>
+                          </div>
+                        )}
+                      </div>
+                      {locationError && (
+                        <p className="mt-1 text-xs text-red-500">
+                          {locationError}
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-gray-500">
+                        Format: latitude,longitude (e.g., 40.7128,-74.0060)
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="bio" className="text-sm font-medium">

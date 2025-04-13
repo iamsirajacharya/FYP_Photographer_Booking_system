@@ -318,45 +318,89 @@ exports.getPendingApplications = catchAsync(async (req, res) => {
 });
 
 // Approve photographer application
+// exports.approveApplication = catchAsync(async (req, res) => {
+//   const { id } = req.params;
+
+//   // Find the photographer application along with the associated user (client who applied)
+//   const photographer = await Photographer.findByPk(id, {
+//     include: [
+//       {
+//         model: User,
+//         as: "users",
+//       },
+//     ],
+//   });
+
+//   if (!photographer) {
+//     return res.status(404).json({ message: "Application not found" });
+//   }
+
+//   // Update application status to approved and set approvedDate
+//   await photographer.update({
+//     applicationStatus: "approved",
+//     approvedDate: new Date(),
+//   });
+
+//   // Update the associated user's role to include both "client" and "photographer"
+//   const currentRole = photographer.users.role || ""; // e.g., "client"
+//   let newRoles;
+
+//   // Check if the user already has the photographer role
+//   if (currentRole.includes("photographer")) {
+//     newRoles = currentRole; // Already includes photographer role
+//   } else {
+//     // Check if the user has the client role
+//     if (currentRole.includes("client")) {
+//       // Append photographer role (e.g., "client,photographer")
+//       newRoles = `${currentRole},photographer`;
+//     } else {
+//       // If no roles exist, set both roles
+//       newRoles = "photographer";
+//     }
+//   }
+
+//   // Update the user's role
+//   await photographer.users.update({ role: newRoles });
+
+//   // Get the Socket.io instance from the app
+//   const io = req.app.get("io");
+//   if (io) {
+//     // Notify the user that their application has been approved
+//     io.to(`user:${photographer.users.id}`).emit("application_approved", {
+//       message:
+//         "Your application to become a photographer has been approved. You now have access to both the client and photographer dashboards.",
+//       photographerApplicationId: photographer.id,
+//     });
+//   }
+
+//   res.json({
+//     message: "Application approved successfully",
+//     photographer,
+//   });
+// });
+
+// Approve photographer application
 exports.approveApplication = catchAsync(async (req, res) => {
   const { id } = req.params;
 
-  // Find the photographer application along with the associated user (client who applied)
   const photographer = await Photographer.findByPk(id, {
-    include: [
-      {
-        model: User,
-        as: "users",
-      },
-    ],
+    include: [{ model: User, as: "users" }],
   });
 
   if (!photographer) {
     return res.status(404).json({ message: "Application not found" });
   }
 
-  // Update application status to approved and set approvedDate
   await photographer.update({
     applicationStatus: "approved",
     approvedDate: new Date(),
   });
 
-  // Update the associated user's role to include both "client" and "photographer"
-  const currentRole = photographer.users.role; // e.g., "client"
-  let newRoles;
-  if (currentRole.includes("photographer")) {
-    newRoles = currentRole; // Already includes photographer role
-  } else {
-    // Append photographer role (e.g., "client,photographer")
-    newRoles = `${currentRole},photographer`;
-  }
+  // Simply set the user role to "photographer"
+  await photographer.users.update({ role: "photographer" });
 
-  await photographer.users.update({ role: newRoles });
-
-  // Get the Socket.io instance from the app
   const io = req.app.get("io");
   if (io) {
-    // Notify the user that their application has been approved
     io.to(`user:${photographer.users.id}`).emit("application_approved", {
       message:
         "Your application to become a photographer has been approved. You now have access to both the client and photographer dashboards.",

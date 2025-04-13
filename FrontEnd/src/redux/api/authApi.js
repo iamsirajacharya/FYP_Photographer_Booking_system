@@ -70,6 +70,24 @@ export const authApi = createApi({
         method: "GET",
       }),
     }),
+
+    // PUT /profile (update user profile)
+    updateProfile: builder.mutation({
+      query: (profileData) => ({
+        url: "/profile",
+        method: "PUT",
+        body: profileData,
+      }),
+    }),
+
+    // PUT /password (update password)
+    updatePassword: builder.mutation({
+      query: (passwordData) => ({
+        url: "/password",
+        method: "PUT",
+        body: passwordData,
+      }),
+    }),
   }),
 });
 
@@ -81,4 +99,6 @@ export const {
   useResetPasswordMutation,
   useRefreshTokenMutation,
   useGetCurrentUserQuery,
+  useUpdateProfileMutation,
+  useUpdatePasswordMutation,
 } = authApi;

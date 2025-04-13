@@ -1,3 +1,4 @@
+// src/pages/ProfilePage.jsx
 import React, { useState, useEffect } from "react";
 import {
   User,
@@ -8,25 +9,173 @@ import {
   Edit,
 } from "lucide-react";
 import { Header } from "../../UI/header";
-import { useGetCurrentUserQuery } from "../redux/api/authApi"; // Updated hook
+import {
+  useGetCurrentUserQuery,
+  useUpdateProfileMutation,
+  useUpdatePasswordMutation,
+} from "../redux/api/authApi";
+import {
+  useGetClientBookingsQuery,
+  // useGetClientPaymentsQuery, // make sure this hook is defined in your bookingApi
+} from "../redux/api/bookingApi";
+
+// Component to list bookings
+const BookingsList = ({ bookings }) => {
+  if (!bookings || bookings.length === 0) {
+    return <p className="text-gray-600">No bookings found.</p>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {bookings.map((booking) => (
+        <div
+          key={booking.id}
+          className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mt-10"
+        >
+          {/* Header Row: Booking Number & Status Label */}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-800">
+              Booking #{booking.bookingNumber}
+            </h3>
+            <span
+              className={`px-3 py-1 rounded-full text-sm font-medium capitalize
+                ${
+                  booking.status === "confirmed"
+                    ? "bg-green-100 text-green-800"
+                    : booking.status === "pending"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : booking.status === "completed"
+                    ? "bg-blue-100 text-blue-800"
+                    : booking.status === "canceled"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-gray-100 text-gray-800"
+                }`}
+            >
+              {booking.status}
+            </span>
+          </div>
+
+          {/* Booking Details */}
+          <div className="text-gray-700 space-y-1">
+            <p>
+              <strong>Date:</strong> {booking.date}
+            </p>
+            <p>
+              <strong>Time:</strong> {booking.startTime} - {booking.endTime}
+            </p>
+            <p>
+              <strong>Total Price:</strong> {booking.totalPrice}
+            </p>
+            {/* Add more details if needed, for example location or sessionType */}
+            {booking.location && (
+              <p>
+                <strong>Location:</strong> {booking.location}
+              </p>
+            )}
+            {booking.sessionType && (
+              <p>
+                <strong>Session Type:</strong> {booking.sessionType}
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Component to list payments
+const PaymentList = ({ payments }) => {
+  if (!payments || payments.length === 0) {
+    return <p>No payments found.</p>;
+  }
+  return (
+    <div>
+      <h3 className="text-xl font-bold mb-4">Your Payments</h3>
+      <ul className="space-y-4">
+        {payments.map((payment) => (
+          <li key={payment.id} className="border p-4 rounded-lg">
+            <p>
+              <strong>Transaction ID:</strong> {payment.transactionId}
+            </p>
+            <p>
+              <strong>Amount:</strong> {payment.amount}
+            </p>
+            <p>
+              <strong>Method:</strong> {payment.paymentMethod}
+            </p>
+            <p>
+              <strong>Status:</strong> {payment.status}
+            </p>
+            <p>
+              <strong>Payment Date:</strong>{" "}
+              {new Date(payment.paymentDate).toLocaleDateString()}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
 
 const ProfilePage = () => {
-  // Get the server response
-  const { data, isLoading, isError, error } = useGetCurrentUserQuery();
+  // Fetch current user profile
+  const { data, isLoading, isError, error, refetch } = useGetCurrentUserQuery();
   const profile = data?.user;
+
+  // Fetch client bookings
+  const {
+    data: clientBookings,
+    isLoading: clientBookingsLoading,
+    isError: clientBookingsError,
+  } = useGetClientBookingsQuery();
+
+  // // Fetch client payments
+  // const {
+  //   data: clientPayments,
+  //   isLoading: paymentsLoading,
+  //   isError: paymentsError,
+  // } = useGetClientPaymentsQuery();
 
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [formData, setFormData] = useState(null);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+  });
+  const [file, setFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
-  // Initialize form data when profile is fetched
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    setFile(selectedFile);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    if (selectedFile) {
+      reader.readAsDataURL(selectedFile);
+    }
+  };
+
+  // Mutation hooks for profile and password update
+  const [
+    updateProfile,
+    { isLoading: updatingProfile, error: updateProfileError },
+  ] = useUpdateProfileMutation();
+  const [
+    updatePassword,
+    { isLoading: updatingPassword, error: updatePasswordError },
+  ] = useUpdatePasswordMutation();
+
   useEffect(() => {
     if (profile) {
       setFormData(profile);
     }
   }, [profile]);
 
-  // Handle input changes for editable fields
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -35,12 +184,41 @@ const ProfilePage = () => {
     }));
   };
 
-  // Handle form submission (update profile mutation to be triggered here)
-  const handleSubmit = (e) => {
+  const handleProfileSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitted data:", formData);
-    setIsEditing(false);
-    // TODO: Trigger your update mutation (e.g., useUpdateUserProfileMutation)
+    const formDataToSend = new FormData();
+    formDataToSend.append("name", formData.name);
+    formDataToSend.append("email", formData.email);
+    formDataToSend.append("phone", formData.phone);
+    if (file) {
+      formDataToSend.append("profileImage", file);
+    }
+    try {
+      await updateProfile(formDataToSend).unwrap();
+      setIsEditing(false);
+      refetch();
+    } catch (err) {
+      console.error("Profile update failed", err);
+    }
+  };
+
+  const handlePasswordInputChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await updatePassword(passwordForm).unwrap();
+      setIsEditingPassword(false);
+      setPasswordForm({ currentPassword: "", newPassword: "" });
+    } catch (err) {
+      console.error("Password update failed", err);
+    }
   };
 
   if (isLoading) {
@@ -55,7 +233,6 @@ const ProfilePage = () => {
     );
   }
 
-  // If no profile is available, show nothing
   if (!profile) return null;
 
   return (
@@ -85,7 +262,10 @@ const ProfilePage = () => {
                 <div className="relative mb-4">
                   <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
                     <img
-                      src={profile.avatar || "/placeholder.svg"}
+                      src={
+                        `http://localhost:3000${profile.profileImage}` ||
+                        "/placeholder.svg"
+                      }
                       alt={profile.name}
                       className="w-full h-full object-cover"
                     />
@@ -100,7 +280,6 @@ const ProfilePage = () => {
                 <h2 className="text-xl font-bold text-gray-800">
                   {profile.name}
                 </h2>
-                {/* Removed location as it's not updated via the API */}
                 <div className="flex items-center text-sm text-gray-500">
                   <span>
                     Member since{" "}
@@ -111,7 +290,6 @@ const ProfilePage = () => {
                   </span>
                 </div>
               </div>
-
               <nav className="mt-6">
                 <ul className="space-y-1">
                   {[
@@ -158,84 +336,198 @@ const ProfilePage = () => {
 
           {/* Main Content */}
           <div className="md:w-2/3">
-            {isEditing ? (
+            {activeTab === "overview" && (
+              <>
+                {isEditing ? (
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <h2 className="text-xl font-bold mb-4">Edit Profile</h2>
+                    <form onSubmit={handleProfileSubmit} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Profile Image
+                        </label>
+                        <input
+                          type="file"
+                          name="profileImage"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="w-full border px-3 py-2 rounded"
+                        />
+                        {imagePreview && (
+                          <img
+                            src={imagePreview}
+                            alt="Profile Preview"
+                            className="mt-2 h-20 w-20 object-cover rounded-full"
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Name
+                        </label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={formData?.name || ""}
+                          onChange={handleInputChange}
+                          className="w-full border px-3 py-2 rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={formData?.email || ""}
+                          onChange={handleInputChange}
+                          className="w-full border px-3 py-2 rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Phone
+                        </label>
+                        <input
+                          type="text"
+                          name="phone"
+                          value={formData?.phone || ""}
+                          onChange={handleInputChange}
+                          className="w-full border px-3 py-2 rounded"
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsEditing(false)}
+                          className="px-4 py-2 border rounded"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-purple-600 text-white rounded"
+                          disabled={updatingProfile}
+                        >
+                          {updatingProfile ? "Saving..." : "Save"}
+                        </button>
+                      </div>
+                      {updateProfileError && (
+                        <p className="text-red-500 text-sm mt-2">
+                          Error updating profile.
+                        </p>
+                      )}
+                    </form>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <h2 className="text-xl font-bold mb-4">
+                      Personal Information
+                    </h2>
+                    <p>
+                      <strong>Name:</strong> {profile.name}
+                    </p>
+                    <p>
+                      <strong>Email:</strong> {profile.email}
+                    </p>
+                    <p>
+                      <strong>Phone:</strong> {profile.phone}
+                    </p>
+                    <div className="mt-4 flex space-x-4">
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="px-4 py-2 bg-purple-600 text-white rounded"
+                      >
+                        Edit Profile
+                      </button>
+                      <button
+                        onClick={() => setIsEditingPassword(true)}
+                        className="px-4 py-2 bg-gray-600 text-white rounded"
+                      >
+                        Change Password
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {isEditingPassword && (
+                  <div className="bg-white rounded-lg shadow-md p-6 mt-6">
+                    <h2 className="text-xl font-bold mb-4">Change Password</h2>
+                    <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Current Password
+                        </label>
+                        <input
+                          type="password"
+                          name="currentPassword"
+                          value={passwordForm.currentPassword}
+                          onChange={handlePasswordInputChange}
+                          className="w-full border px-3 py-2 rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          New Password
+                        </label>
+                        <input
+                          type="password"
+                          name="newPassword"
+                          value={passwordForm.newPassword}
+                          onChange={handlePasswordInputChange}
+                          className="w-full border px-3 py-2 rounded"
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingPassword(false)}
+                          className="px-4 py-2 border rounded"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-gray-600 text-white rounded"
+                          disabled={updatingPassword}
+                        >
+                          {updatingPassword ? "Saving..." : "Save"}
+                        </button>
+                      </div>
+                      {updatePasswordError && (
+                        <p className="text-red-500 text-sm mt-2">
+                          Error updating password.
+                        </p>
+                      )}
+                    </form>
+                  </div>
+                )}
+              </>
+            )}
+            {activeTab === "bookings" && (
               <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-bold mb-4">Edit Profile</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Name
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData?.name || ""}
-                      onChange={handleInputChange}
-                      className="w-full border px-3 py-2 rounded"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData?.email || ""}
-                      onChange={handleInputChange}
-                      className="w-full border px-3 py-2 rounded"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Phone
-                    </label>
-                    <input
-                      type="text"
-                      name="phone"
-                      value={formData?.phone || ""}
-                      onChange={handleInputChange}
-                      className="w-full border px-3 py-2 rounded"
-                    />
-                  </div>
-                  {/* Removed unnecessary fields (Location and Bio) */}
-                  <div className="flex justify-end space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 border rounded"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-purple-600 text-white rounded"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-bold mb-4">Personal Information</h2>
-                <p>
-                  <strong>Name:</strong> {profile.name}
-                </p>
-                <p>
-                  <strong>Email:</strong> {profile.email}
-                </p>
-                <p>
-                  <strong>Phone:</strong> {profile.phone}
-                </p>
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="mt-4 px-4 py-2 bg-purple-600 text-white rounded"
-                >
-                  Edit Profile
-                </button>
+                {clientBookingsLoading ? (
+                  <p>Loading bookings...</p>
+                ) : clientBookingsError ? (
+                  <p>Error loading bookings.</p>
+                ) : (
+                  <BookingsList bookings={clientBookings} />
+                )}
               </div>
             )}
+            {activeTab === "payments" && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                {paymentsLoading ? (
+                  <p>Loading payments...</p>
+                ) : paymentsError ? (
+                  <p>Error loading payments.</p>
+                ) : (
+                  <PaymentList payments={clientPayments} />
+                )}
+              </div>
+            )}
+            {/* You can add similar conditions for "favorites" and "settings" */}
           </div>
         </div>
       </div>

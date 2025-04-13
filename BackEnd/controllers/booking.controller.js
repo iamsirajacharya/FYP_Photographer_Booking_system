@@ -1,6 +1,7 @@
 const db = require("../models");
 const { catchAsync } = require("../utils/catchAsync");
 const { Op } = require("sequelize");
+const asyncHandler = require("express-async-handler");
 
 const User = db.User;
 const Photographer = db.Photographer;
@@ -8,7 +9,7 @@ const Booking = db.Booking;
 const Review = db.Review;
 
 // Create a new booking
-exports.createBooking = catchAsync(async (req, res) => {
+const createBooking = catchAsync(async (req, res) => {
   const clientId = req.userId;
   const {
     photographerId,
@@ -19,6 +20,8 @@ exports.createBooking = catchAsync(async (req, res) => {
     location,
     sessionType,
     notes,
+    paymentMethod,
+    transactionId,
   } = req.body;
 
   // Validate photographer exists and include associated user details
@@ -51,10 +54,25 @@ exports.createBooking = catchAsync(async (req, res) => {
   // Calculate total price
   const totalPrice = photographer.hourlyRate * duration;
 
+  // Validate payment method
+  if (!paymentMethod || !["online", "cash_in_hand"].includes(paymentMethod)) {
+    return res.status(400).json({
+      message:
+        "Invalid payment method. Must be either 'online' or 'cash_in_hand'",
+    });
+  }
+
+  // For online payments, transactionId is required
+  if (paymentMethod === "online" && !transactionId) {
+    return res.status(400).json({
+      message: "Transaction ID is required for online payments",
+    });
+  }
+
   // Auto-generate booking number if not provided
   const bookingNumber = req.body.bookingNumber || `BKG-${Date.now()}`;
 
-  // Create booking including bookingNumber
+  // Create booking including bookingNumber and payment details
   const booking = await Booking.create({
     clientId,
     photographerId,
@@ -66,9 +84,21 @@ exports.createBooking = catchAsync(async (req, res) => {
     sessionType,
     notes,
     totalPrice,
-    bookingNumber, // <-- include bookingNumber here
+    bookingNumber,
     status: "pending",
     paymentStatus: "pending",
+    paymentMethod,
+    transactionId: paymentMethod === "online" ? transactionId : null,
+  });
+
+  // Create payment record
+  const payment = await db.Payment.create({
+    bookingId: booking.id,
+    userId: clientId,
+    amount: totalPrice,
+    paymentMethod,
+    transactionId: paymentMethod === "online" ? transactionId : null,
+    status: "pending",
   });
 
   // Notify photographer via socket.io
@@ -77,6 +107,7 @@ exports.createBooking = catchAsync(async (req, res) => {
     io.to(`user:${photographer.users.id}`).emit("new_booking", {
       bookingId: booking.id,
       status: booking.status,
+      paymentMethod,
       message: "You have a new booking request.",
     });
   }
@@ -84,11 +115,12 @@ exports.createBooking = catchAsync(async (req, res) => {
   res.status(201).json({
     message: "Booking created successfully",
     booking,
+    payment,
   });
 });
 
 // Get client bookings
-exports.getClientBookings = catchAsync(async (req, res) => {
+const getClientBookings = catchAsync(async (req, res) => {
   const clientId = req.userId;
   const { status, page = 1, limit = 10 } = req.query;
   const offset = (page - 1) * limit;
@@ -129,7 +161,7 @@ exports.getClientBookings = catchAsync(async (req, res) => {
 });
 
 // Get booking details
-exports.getBookingDetails = catchAsync(async (req, res) => {
+const getBookingDetails = catchAsync(async (req, res) => {
   const userId = req.userId;
   const { id } = req.params;
 
@@ -178,7 +210,7 @@ exports.getBookingDetails = catchAsync(async (req, res) => {
 });
 
 // Update booking status (client only for cancellations)
-exports.updateBookingStatus = catchAsync(async (req, res) => {
+const updateBookingStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   let booking;
@@ -197,7 +229,10 @@ exports.updateBookingStatus = catchAsync(async (req, res) => {
     req.user && (req.user.photographerProfile || req.user.photographer);
 
   if (photographer) {
-    // Photographer branch: allow only confirmation
+    // Photographer branch: allow status update to any valid status
+    if (!["pending", "confirmed", "completed", "canceled"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status update" });
+    }
     booking = await Booking.findOne({
       where: { id, photographerId: photographer.id },
       include: [
@@ -214,9 +249,6 @@ exports.updateBookingStatus = catchAsync(async (req, res) => {
         },
       ],
     });
-    if (status !== "confirmed") {
-      return res.status(400).json({ message: "Invalid status update" });
-    }
   } else if (req.user && req.user.role === "client") {
     // Client branch: allow only cancellation
     const clientId = req.user.id;
@@ -298,30 +330,31 @@ exports.updateBookingStatus = catchAsync(async (req, res) => {
 });
 
 // Create a review for a booking
-exports.createReview = catchAsync(async (req, res) => {
+const createReview = catchAsync(async (req, res) => {
   const userId = req.userId;
-  const { bookingId } = req.params;
-  const { rating, comment } = req.body;
+  const { bookingId } = req.params; // Optional if provided
+  const { rating, comment, photographerId } = req.body;
 
-  // Ensure the booking exists, belongs to the client, and is completed
-  const booking = await Booking.findOne({
-    where: { id: bookingId, clientId: userId, status: "completed" },
-  });
-
-  if (!booking) {
-    return res.status(404).json({ message: "Completed booking not found" });
+  // Check if photographerId is provided
+  if (!photographerId) {
+    return res.status(400).json({ message: "Photographer ID is required" });
   }
 
   // Prevent duplicate reviews
-  if (booking.isRated) {
-    return res.status(400).json({ message: "Booking is already rated" });
+  const existingReview = await Review.findOne({
+    where: { userId, photographerId },
+  });
+  if (existingReview) {
+    return res.status(400).json({
+      message: "You have already reviewed this photographer",
+    });
   }
 
-  // Create review
+  // Create the review without checking for booking completion
   const review = await Review.create({
     userId,
-    photographerId: booking.photographerId,
-    bookingId,
+    photographerId,
+    bookingId: bookingId || null,
     rating,
     comment,
   });
@@ -333,10 +366,18 @@ exports.createReview = catchAsync(async (req, res) => {
 });
 
 // Process payment for a booking
-exports.processPayment = catchAsync(async (req, res) => {
+const processPayment = catchAsync(async (req, res) => {
   const clientId = req.userId;
   const { id } = req.params;
   const { paymentMethod, transactionId } = req.body;
+
+  // Validate payment method
+  if (!paymentMethod || !["online", "cash_in_hand"].includes(paymentMethod)) {
+    return res.status(400).json({
+      message:
+        "Invalid payment method. Must be either 'online' or 'cash_in_hand'",
+    });
+  }
 
   // Get pending booking with photographer and associated user details
   const booking = await Booking.findOne({
@@ -360,24 +401,50 @@ exports.processPayment = catchAsync(async (req, res) => {
     return res.status(404).json({ message: "Pending booking not found" });
   }
 
+  // For online payments, transactionId is required
+  if (paymentMethod === "online" && !transactionId) {
+    return res.status(400).json({
+      message: "Transaction ID is required for online payments",
+    });
+  }
+
+  // Find the existing payment record
+  const payment = await db.Payment.findOne({
+    where: { bookingId: booking.id },
+  });
+
+  if (!payment) {
+    return res.status(404).json({ message: "Payment record not found" });
+  }
+
+  // Update payment record
+  await payment.update({
+    status: "completed",
+    transactionId: paymentMethod === "online" ? transactionId : null,
+    paymentDate: new Date(),
+  });
+
   // Update booking with payment details
   await booking.update({
     status: "confirmed",
     paymentStatus: "paid",
     paymentMethod,
-    transactionId,
+    transactionId: paymentMethod === "online" ? transactionId : null,
     paymentDate: new Date(),
   });
 
   // Notify photographer via socket.io about payment confirmation
   const io = req.app.get("io");
-  if (io && booking && booking.photographer && booking.photographer.users) {
-    io.to(`user:${booking.photographer.users.id}`).emit(
+  if (io && booking && booking.photographers && booking.photographers.users) {
+    io.to(`user:${booking.photographers.users.id}`).emit(
       "booking_payment_confirmed",
       {
         bookingId: booking.id,
         status: booking.status,
-        message: "Payment processed for your booking.",
+        paymentMethod,
+        message: `Payment processed for your booking via ${
+          paymentMethod === "online" ? "online payment" : "cash-in-hand"
+        }.`,
       }
     );
   }
@@ -385,11 +452,12 @@ exports.processPayment = catchAsync(async (req, res) => {
   res.json({
     message: "Payment processed successfully",
     booking,
+    payment,
   });
 });
 
 // Get all bookings (for admin or overview purposes)
-exports.getAllBookings = catchAsync(async (req, res) => {
+const getAllBookings = catchAsync(async (req, res) => {
   const { page = 1, limit = 10 } = req.query;
   const offset = (page - 1) * limit;
 
@@ -424,3 +492,101 @@ exports.getAllBookings = catchAsync(async (req, res) => {
     totalBookings: count,
   });
 });
+
+// @desc    Get all bookings for a user
+// @route   GET /api/bookings
+// @access  Private
+const getBookings = asyncHandler(async (req, res) => {
+  const bookings = await Booking.findAll({
+    where: { clientId: req.user.id },
+    include: [
+      {
+        model: db.Photographer,
+        as: "photographers",
+        include: [
+          {
+            model: db.User,
+            as: "users",
+            attributes: ["id", "name", "email", "profileImage"],
+          },
+        ],
+      },
+    ],
+  });
+  res.json(bookings);
+});
+
+// @desc    Get booking by ID
+// @route   GET /api/bookings/:id
+// @access  Private
+const getBookingById = asyncHandler(async (req, res) => {
+  const booking = await Booking.findByPk(req.params.id, {
+    include: [
+      {
+        model: db.Photographer,
+        as: "photographers",
+        include: [
+          {
+            model: db.User,
+            as: "users",
+            attributes: ["id", "name", "email", "profileImage"],
+          },
+        ],
+      },
+    ],
+  });
+
+  if (!booking) {
+    res.status(404);
+    throw new Error("Booking not found");
+  }
+
+  // Check if the booking belongs to the user
+  if (booking.clientId !== req.user.id) {
+    res.status(401);
+    throw new Error("Not authorized");
+  }
+
+  res.json(booking);
+});
+
+// @desc    Process payment for a booking
+// @route   POST /api/bookings/:id/payment
+// @access  Private
+// const processPayment = asyncHandler(async (req, res) => {
+//   const { paymentMethod, transactionId } = req.body;
+//   const booking = await Booking.findByPk(req.params.id);
+
+//   if (!booking) {
+//     res.status(404);
+//     throw new Error("Booking not found");
+//   }
+
+//   // Check if the booking belongs to the user
+//   if (booking.clientId !== req.user.id) {
+//     res.status(401);
+//     throw new Error("Not authorized");
+//   }
+
+//   // Update booking with payment details
+//   booking.paymentStatus = "paid";
+//   booking.paymentMethod = paymentMethod;
+//   booking.transactionId = transactionId;
+//   booking.paymentDate = new Date();
+
+//   const updatedBooking = await booking.save();
+
+//   res.json(updatedBooking);
+// });
+
+module.exports = {
+  createBooking,
+  getAllBookings,
+  getClientBookings,
+  getBookingDetails,
+  updateBookingStatus,
+  createReview,
+  processPayment,
+  getBookings,
+  getBookingById,
+};

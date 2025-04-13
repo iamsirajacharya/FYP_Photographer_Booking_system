@@ -15,11 +15,11 @@ export default function ReportsPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      {/* <Header /> */}
       <div className="flex flex-1">
         <AdminSidebar />
 
-        <main className="flex-1 p-6 md:p-8">
+        <main className="flex-1 p-6 md:p-8 ml-60">
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-purple-800">
@@ -145,7 +145,7 @@ export default function ReportsPage() {
           </div>
         </main>
       </div>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 }

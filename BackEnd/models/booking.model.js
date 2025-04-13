@@ -70,7 +70,7 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: "pending",
       },
       paymentMethod: {
-        type: DataTypes.STRING,
+        type: DataTypes.ENUM("online", "cash_in_hand"),
         allowNull: true,
       },
       transactionId: {
