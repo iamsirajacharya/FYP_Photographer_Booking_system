@@ -42,4 +42,8 @@ router.post(
   photographerController.uploadPortfolioImage
 );
 
+// New routes for geo-fencing
+router.get("/nearby", photographerController.getNearbyPhotographers);
+router.get("/geocode/reverse", photographerController.getPlaceFromCoordinates);
+
 module.exports = router;

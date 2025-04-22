@@ -62,14 +62,6 @@ export const photographerApi = apiSlice.injectEndpoints({
       }),
     }),
 
-    // updatePhotographerProfile: builder.mutation({
-    //   query: (photographerData) => ({
-    //     url: "/photographers/profile",
-    //     method: "PUT",
-    //     body: photographerData,
-    //   }),
-    //   invalidatesTags: ["Photographer"],
-    // }),
     updatePhotographerProfile: builder.mutation({
       query: (photographerData) => ({
         url: "/photographers/profile/me", // updated URL to match your router
@@ -104,6 +96,60 @@ export const photographerApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["Photographer"],
     }),
+
+    // Updated getNearbyPhotographers with proper error handling
+    getNearbyPhotographers: builder.query({
+      query: (params) => ({
+        url: "/photographers/nearby",
+        params,
+      }),
+      // Add transformResponse to handle empty results properly
+      transformResponse: (response, meta, arg) => {
+        // If the response is empty or has no photographers, return an empty array
+        if (!response || !response.photographers) {
+          return { photographers: [], totalPhotographers: 0 };
+        }
+        return response;
+      },
+      // Add transformErrorResponse to handle errors better
+      transformErrorResponse: (response) => {
+        console.error("Nearby photographers API error:", response);
+        // Return a more user-friendly error
+        return {
+          status: response.status,
+          data: {
+            message:
+              response.data?.message || "Failed to fetch nearby photographers",
+          },
+        };
+      },
+      // Add onQueryStarted to log requests for debugging
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+        } catch (error) {
+          console.error("Nearby photographers query failed:", error);
+        }
+      },
+    }),
+
+    getPlaceFromCoordinates: builder.query({
+      query: (params) => ({
+        url: "/photographers/geocode/reverse",
+        params,
+      }),
+      // Add error handling for this endpoint too
+      transformErrorResponse: (response) => {
+        console.error("Geocoding API error:", response);
+        return {
+          status: response.status,
+          data: {
+            message:
+              response.data?.message || "Failed to get location information",
+          },
+        };
+      },
+    }),
   }),
 });
 
@@ -118,5 +164,7 @@ export const {
   useUploadPortfolioImageMutation,
   useDeletePortfolioImageMutation,
   useUpdateAvailabilityMutation,
-  useBookPhotographerMutation, // if needed
+  useBookPhotographerMutation,
+  useGetNearbyPhotographersQuery,
+  useGetPlaceFromCoordinatesQuery,
 } = photographerApi;

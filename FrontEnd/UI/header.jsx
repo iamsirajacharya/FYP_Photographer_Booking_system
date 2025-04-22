@@ -1,4 +1,3 @@
-// Header.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -18,6 +17,18 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../src/redux/slices/authSlice";
 import MessageNotification from "./MessageNotification";
+
+// Helper function to build full URL for images stored in the /uploads folder
+const getImageUrl = (filename, placeholder = "/placeholder.svg") => {
+  if (!filename) return placeholder;
+
+  // If filename already starts with /uploads/, don't add it again
+  const baseUrl = "http://localhost:3000";
+  const path = filename.startsWith("/uploads/")
+    ? filename
+    : `/uploads/${filename}`;
+  return `${baseUrl}${path}`;
+};
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -128,9 +139,10 @@ export function Header() {
               aria-haspopup="true"
             >
               <img
-                src="/placeholder.svg"
+                src={getImageUrl(user?.profileImage)}
                 alt="User avatar"
                 className="h-full w-full object-cover"
+                onError={(e) => (e.target.src = "/placeholder.svg")}
               />
             </button>
 
@@ -223,9 +235,10 @@ export function Header() {
             </div>
             <div className="mb-6 flex items-center space-x-4 border-b border-gray-100 pb-6">
               <img
-                src="/placeholder.svg"
+                src={getImageUrl(user?.profileImage)}
                 alt="User avatar"
                 className="h-14 w-14 rounded-full border border-gray-200 bg-gray-50"
+                onError={(e) => (e.target.src = "/placeholder.svg")}
               />
               <div>
                 <h3 className="font-medium text-gray-900">

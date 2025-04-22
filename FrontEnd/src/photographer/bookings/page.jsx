@@ -15,6 +15,7 @@ import {
   useUpdateBookingStatusMutation,
 } from "../../redux/api/bookingApi";
 import { useSelector } from "react-redux";
+import { NavLink } from "react-router-dom";
 
 // Status mapping for display
 const statusMap = {
@@ -583,10 +584,13 @@ export default function PhotographerBookingsPage() {
                 ? "You don't have any bookings yet."
                 : `You don't have any ${activeTab} bookings.`}
             </p>
-            <button className="mt-6 inline-flex items-center justify-center rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+            <NavLink
+              to="/photographer/availability"
+              className="mt-6 inline-flex items-center justify-center rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+            >
               <Calendar className="mr-2 h-4 w-4" />
               Update Availability
-            </button>
+            </NavLink>
           </div>
         )}
       </div>

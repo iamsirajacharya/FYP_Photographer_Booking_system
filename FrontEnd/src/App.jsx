@@ -27,6 +27,8 @@ import AdminPhotographersPage from "./admin/photographers/page";
 // import PhotographerDetailPage from "./photographers/details/page";
 // import PhotographerDashboardProtectedRoute from "./components/PhotographerDashboardProtectedRoute";
 import { useGetCurrentUserQuery } from "./redux/api/authApi";
+import Success from "./components/PaymentSuccess";
+import Failure from "./components/PaymentFailure";
 
 function App() {
   // const navigate = useNavigate();
@@ -200,6 +202,8 @@ function App() {
           </PrivateRoute>
         }
       />
+      <Route path="/booking/success" element={<Success />} />
+      <Route path="/booking/failure" element={<Failure />} />
     </Routes>
   );
 }

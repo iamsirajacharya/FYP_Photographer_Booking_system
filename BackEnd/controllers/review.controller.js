@@ -1,6 +1,5 @@
-// review.controller.js
-const { Review } = require("../models"); // Remove Booking since we won't use it
-const { User } = require("../models"); // If you need to include user for the getReviewsByPhotographer
+const { Review } = require("../models");
+const { User } = require("../models");
 
 // Create a new review (directly, without requiring a booking)
 exports.createReview = async (req, res) => {
@@ -8,7 +7,22 @@ exports.createReview = async (req, res) => {
     const { photographerId, rating, comment } = req.body;
     const userId = req.user.id;
 
-    // Directly create the review without any booking dependency.
+    // Check if the user has already reviewed this photographer
+    const existingReview = await Review.findOne({
+      where: {
+        userId,
+        photographerId,
+      },
+    });
+
+    if (existingReview) {
+      return res.status(400).json({
+        error:
+          "You have already reviewed this photographer. You can only submit one review per photographer.",
+      });
+    }
+
+    // Create the review since no existing review was found
     const review = await Review.create({
       userId,
       photographerId,
@@ -66,7 +80,7 @@ exports.updateReview = async (req, res) => {
     review.comment = comment !== undefined ? comment : review.comment;
 
     await review.save();
-    return res.json(review);
+    return res.json({ message: "Review updated successfully", review });
   } catch (error) {
     console.error("Error updating review:", error);
     return res.status(500).json({ error: "Server error" });

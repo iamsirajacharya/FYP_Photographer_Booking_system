@@ -166,18 +166,6 @@ export function Header() {
           {/* Notifications */}
           <MessageNotification />
 
-          {/* Dark Mode Toggle
-          <button
-            onClick={toggleDarkMode}
-            className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            {isDarkMode ? (
-              <Sun className="h-5 w-5" />
-            ) : (
-              <Moon className="h-5 w-5" />
-            )}
-          </button> */}
-
           {/* Mobile Menu Toggle */}
           <button
             onClick={toggleMobileMenu}
@@ -232,14 +220,14 @@ export function Header() {
                     <User className="h-4 w-4" />
                     My Profile
                   </Link>
-                  <Link
+                  {/* <Link
                     to="/photographer/settings"
                     className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                     onClick={() => setIsProfileDropdownOpen(false)}
                   >
                     <Settings className="h-4 w-4" />
                     Settings
-                  </Link>
+                  </Link> */}
                   <Link
                     to="/user/dashboard"
                     className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"

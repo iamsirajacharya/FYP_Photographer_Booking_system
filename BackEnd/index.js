@@ -13,9 +13,9 @@ const bookingRoutes = require("./routes/booking.routes");
 const adminRoutes = require("./routes/admin.routes");
 const reviewRoutes = require("./routes/review.routes");
 const messageRoutes = require("./routes/message.routes");
+const esewaRoutes = require("./routes/esewa.routes");
 const { errorHandler } = require("./middleware/errorHandler");
 const { socketAuthMiddleware } = require("./middleware/socketAuth");
-const morgan = require("morgan");
 const path = require("path");
 
 // Load environment variables
@@ -48,9 +48,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
-// Logging middleware
-app.use(morgan("combined"));
-
 // Routes
 app.use("/api/auth", authRoutes);
 // app.use("/api/users", userRoutes);
@@ -59,6 +56,7 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/messages", messageRoutes);
+// app.use("/api/esewa", esewaRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
@@ -164,13 +162,11 @@ io.on("connection", (socket) => {
   socket.on("booking_update", (data) => {
     const { bookingId, status, userId } = data;
 
-    // Emit to specific user
     io.to(`user:${userId}`).emit("booking_status_changed", {
       bookingId,
       status,
     });
 
-    // Also notify admins
     io.to("admin").emit("admin_booking_update", {
       bookingId,
       status,
@@ -182,6 +178,7 @@ io.on("connection", (socket) => {
     console.log("User disconnected:", socket.userId);
   });
 });
+
 
 const defaultSpecialties = [
   'Portrait',
@@ -196,7 +193,7 @@ const defaultSpecialties = [
   'Product',
 ];
 
-const Specialty = require('./models').Specialty; // update path as needed
+const Specialty = require('./models').Specialty;
 
 async function insertDefaultSpecialties() {
   for (const name of defaultSpecialties) {
@@ -204,13 +201,12 @@ async function insertDefaultSpecialties() {
   }
 }
 
-// Database synchronization and server start
 const PORT = process.env.PORT;
 
 db.sequelize
   .sync()
   .then(async () => {
-    // Optionally create an admin user if not already present
+    insertDefaultSpecialties();
     const adminName = process.env.ADMIN_NAME;
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;
@@ -225,9 +221,10 @@ db.sequelize
       await db.User.create({
         name: adminName,
         email: adminEmail,
-        password: adminPassword, // Will be hashed automatically via the User model hooks
+        password: adminPassword, 
         role: "admin",
       });
+      
 
       console.log(`Admin user created with email: ${adminEmail}`);
     } else {

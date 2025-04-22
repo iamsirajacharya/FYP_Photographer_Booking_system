@@ -1,6 +1,11 @@
 const db = require("../models");
 const { catchAsync } = require("../utils/catchAsync");
 const { Op } = require("sequelize");
+const {
+  parseLocationString,
+  reverseGeocode,
+  calculateDistance,
+} = require("../utils/geoCoding");
 
 const User = db.User;
 const Photographer = db.Photographer;
@@ -24,7 +29,7 @@ exports.applyAsPhotographer = catchAsync(async (req, res) => {
 
   // 2) Extract text fields from request body
   const {
-    specialty, // Single primary specialty as a string (e.g. "Portrait")
+    specialty,
     bio,
     experience,
     location,
@@ -37,7 +42,7 @@ exports.applyAsPhotographer = catchAsync(async (req, res) => {
   let specialties = [];
   if (req.body.specialties) {
     try {
-      specialties = JSON.parse(req.body.specialties); // e.g. ["Portrait","Wedding"]
+      specialties = JSON.parse(req.body.specialties);
     } catch (err) {
       return res.status(400).json({ message: "Invalid specialties format." });
     }
@@ -46,14 +51,13 @@ exports.applyAsPhotographer = catchAsync(async (req, res) => {
   // 4) Gather uploaded file paths from req.files
   let portfolioImages = [];
   if (req.files && req.files.length > 0) {
-    // Save only the filenames (or adjust if you need the full path)
     portfolioImages = req.files.map((file) => file.filename);
   }
 
   // 5) Create photographer profile
   const photographer = await Photographer.create({
     userId,
-    specialty, // This must not be null. If none is provided, ensure your frontend sends a default.
+    specialty,
     bio,
     experience,
     location,
@@ -67,17 +71,14 @@ exports.applyAsPhotographer = catchAsync(async (req, res) => {
 
   // 6) If multiple specialties exist, verify them using the Specialty model
   if (specialties.length > 0) {
-    // Look up specialties by name in the Specialty model
     const foundSpecialties = await Specialty.findAll({
       where: { name: specialties },
     });
 
-    // If not all provided specialties were found, return an error.
     if (foundSpecialties.length !== specialties.length) {
       return res.status(400).json({ message: "Some specialties are invalid." });
     }
 
-    // Create pivot table records
     const specialtyRecords = foundSpecialties.map((spec) => ({
       photographerId: photographer.id,
       specialtyId: spec.id,
@@ -149,7 +150,7 @@ exports.updateProfile = catchAsync(async (req, res) => {
   } = req.body;
 
   // Update photographer profile
-  await photographer.update({
+  const updateData = {
     specialty,
     bio,
     experience,
@@ -158,7 +159,9 @@ exports.updateProfile = catchAsync(async (req, res) => {
     equipment,
     availableDays,
     portfolioImages,
-  });
+  };
+
+  await photographer.update(updateData);
 
   // Update specialties if provided
   if (req.body.specialties) {
@@ -193,6 +196,9 @@ exports.getAllPhotographers = catchAsync(async (req, res) => {
     maxPrice,
     minRating,
     location,
+    latitude,
+    longitude,
+    radius = 50, // Default radius in kilometers
   } = req.query;
 
   const offset = (page - 1) * limit;
@@ -208,7 +214,6 @@ exports.getAllPhotographers = catchAsync(async (req, res) => {
     as: "users",
     attributes: ["id", "name", "email", "profileImage", "role"],
     where: {
-      // Only include users with role: "photographer"
       role: "photographer",
     },
   };
@@ -242,13 +247,13 @@ exports.getAllPhotographers = catchAsync(async (req, res) => {
     whereClause.averageRating = { [Op.gte]: minRating };
   }
 
-  // Location filter
-  if (location) {
+  // Location filter by text (if not using coordinates)
+  if (location && !latitude && !longitude) {
     whereClause.location = { [Op.like]: `%${location}%` };
   }
 
   // Query photographers
-  const { count, rows: photographers } = await Photographer.findAndCountAll({
+  let { count, rows: photographers } = await Photographer.findAndCountAll({
     where: whereClause,
     include: [
       includeUser,
@@ -261,6 +266,36 @@ exports.getAllPhotographers = catchAsync(async (req, res) => {
     offset: Number.parseInt(offset),
     order: [["averageRating", "DESC"]],
   });
+
+  // If latitude and longitude are provided, filter by distance
+  if (latitude && longitude) {
+    const userLat = Number.parseFloat(latitude);
+    const userLng = Number.parseFloat(longitude);
+    const maxRadius = Number.parseFloat(radius);
+
+    // Filter photographers by distance and add distance property
+    photographers = photographers
+      .filter((photographer) => {
+        const coords = parseLocationString(photographer.location);
+        if (!coords) return false;
+
+        const distance = calculateDistance(
+          userLat,
+          userLng,
+          coords.latitude,
+          coords.longitude
+        );
+
+        photographer.dataValues.distance = Number.parseFloat(
+          distance.toFixed(2)
+        );
+
+        return distance <= maxRadius;
+      })
+      .sort((a, b) => a.dataValues.distance - b.dataValues.distance);
+
+    count = photographers.length;
+  }
 
   res.json({
     photographers,
@@ -288,7 +323,7 @@ exports.getPhotographerDetails = catchAsync(async (req, res) => {
       {
         model: Review,
         as: "reviews",
-        attributes: { exclude: ["bookingId"] }, // Exclude the unwanted column
+        attributes: { exclude: ["bookingId"] },
         include: [
           {
             model: User,
@@ -306,7 +341,6 @@ exports.getPhotographerDetails = catchAsync(async (req, res) => {
     return res.status(404).json({ message: "Photographer not found" });
   }
 
-  // Get availability for next 30 days
   const today = new Date();
   const thirtyDaysLater = new Date();
   thirtyDaysLater.setDate(today.getDate() + 30);
@@ -324,12 +358,9 @@ exports.getPhotographerDetails = catchAsync(async (req, res) => {
     },
   });
 
-  // Format availability
   const availability = {};
-  // Assume availableDays is stored as an object e.g. { monday: true, tuesday: true, ... }
   const availableDays = photographer.availableDays || {};
 
-  // Map JavaScript day abbreviations to your availableDays keys
   const dayMapping = {
     Sun: "sunday",
     Mon: "monday",
@@ -347,12 +378,9 @@ exports.getPhotographerDetails = catchAsync(async (req, res) => {
     const dayAbbr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
       date.getDay()
     ];
-    // Convert the abbreviation to the key used in your availableDays object
     const dayKey = dayMapping[dayAbbr];
 
-    // Check if the photographer is available on this day
     if (availableDays[dayKey]) {
-      // Get bookings for this day
       const dayBookings = bookings.filter((b) => {
         return new Date(b.date).toISOString().split("T")[0] === dateString;
       });
@@ -382,7 +410,6 @@ exports.getPhotographerDetails = catchAsync(async (req, res) => {
 exports.getPhotographerBookings = catchAsync(async (req, res) => {
   const userId = req.userId;
 
-  // Get photographer profile
   const photographer = await Photographer.findOne({
     where: { userId },
   });
@@ -394,7 +421,6 @@ exports.getPhotographerBookings = catchAsync(async (req, res) => {
   const { status, page = 1, limit = 10 } = req.query;
   const offset = (page - 1) * limit;
 
-  // Build where clause
   const whereClause = {
     photographerId: photographer.id,
   };
@@ -403,7 +429,6 @@ exports.getPhotographerBookings = catchAsync(async (req, res) => {
     whereClause.status = status;
   }
 
-  // Get bookings
   const { count, rows: bookings } = await Booking.findAndCountAll({
     where: whereClause,
     include: [
@@ -432,7 +457,6 @@ exports.updateBookingStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
-  // Get photographer profile
   const photographer = await Photographer.findOne({
     where: { userId },
   });
@@ -441,7 +465,6 @@ exports.updateBookingStatus = catchAsync(async (req, res) => {
     return res.status(404).json({ message: "Photographer profile not found" });
   }
 
-  // Get booking along with the client details
   const booking = await Booking.findOne({
     where: {
       id,
@@ -459,15 +482,12 @@ exports.updateBookingStatus = catchAsync(async (req, res) => {
     return res.status(404).json({ message: "Booking not found" });
   }
 
-  // Update booking status
   await booking.update({ status });
 
-  // If completed, update photographer stats
   if (status === "completed") {
     await photographer.increment("completedBookings");
   }
 
-  // Notify client via Socket.io about the booking status update
   const io = req.app.get("io");
   if (io && booking && booking.client) {
     io.to(`user:${booking.client.id}`).emit("booking_status_updated", {
@@ -487,7 +507,6 @@ exports.updateBookingStatus = catchAsync(async (req, res) => {
 exports.getPhotographerReviews = catchAsync(async (req, res) => {
   const userId = req.userId;
 
-  // Get photographer profile
   const photographer = await Photographer.findOne({
     where: { userId },
   });
@@ -499,7 +518,6 @@ exports.getPhotographerReviews = catchAsync(async (req, res) => {
   const { page = 1, limit = 10 } = req.query;
   const offset = (page - 1) * limit;
 
-  // Get reviews
   const { count, rows: reviews } = await Review.findAndCountAll({
     where: { photographerId: photographer.id },
     include: [
@@ -531,7 +549,6 @@ exports.getPhotographerReviews = catchAsync(async (req, res) => {
 exports.getPhotographerEarnings = catchAsync(async (req, res) => {
   const userId = req.userId;
 
-  // Get photographer profile
   const photographer = await Photographer.findOne({
     where: { userId },
   });
@@ -545,7 +562,6 @@ exports.getPhotographerEarnings = catchAsync(async (req, res) => {
   let startDate;
   const endDate = new Date();
 
-  // Set start date based on period
   if (period === "week") {
     startDate = new Date();
     startDate.setDate(startDate.getDate() - 7);
@@ -556,11 +572,9 @@ exports.getPhotographerEarnings = catchAsync(async (req, res) => {
     startDate = new Date();
     startDate.setFullYear(startDate.getFullYear() - 1);
   } else {
-    // Custom period
     startDate = new Date(period);
   }
 
-  // Get earnings by date
   const earningsByDate = await Booking.findAll({
     attributes: [
       [db.sequelize.fn("DATE", db.sequelize.col("date")), "date"],
@@ -580,7 +594,6 @@ exports.getPhotographerEarnings = catchAsync(async (req, res) => {
     raw: true,
   });
 
-  // Get total earnings
   const totalEarnings =
     (await Booking.sum("totalPrice", {
       where: {
@@ -591,7 +604,6 @@ exports.getPhotographerEarnings = catchAsync(async (req, res) => {
       },
     })) || 0;
 
-  // Get earnings for current period
   const periodEarnings =
     (await Booking.sum("totalPrice", {
       where: {
@@ -605,7 +617,6 @@ exports.getPhotographerEarnings = catchAsync(async (req, res) => {
       },
     })) || 0;
 
-  // Get earnings by session type
   const earningsByType = await Booking.findAll({
     attributes: [
       "sessionType",
@@ -626,7 +637,6 @@ exports.getPhotographerEarnings = catchAsync(async (req, res) => {
     raw: true,
   });
 
-  // Get earnings by payment method
   const earningsByPaymentMethod = await Booking.findAll({
     attributes: [
       "paymentMethod",
@@ -660,19 +670,16 @@ exports.getPhotographerEarnings = catchAsync(async (req, res) => {
 exports.updateAvailability = catchAsync(async (req, res) => {
   const userId = req.userId;
 
-  // Retrieve photographer profile for the authenticated user
   const photographer = await Photographer.findOne({ where: { userId } });
   if (!photographer) {
     return res.status(404).json({ message: "Photographer profile not found" });
   }
 
-  // Extract workingDays from the request body (this represents available days)
   const { workingDays } = req.body;
   if (!workingDays) {
     return res.status(400).json({ message: "No working days provided." });
   }
 
-  // Update only the availableDays field
   await photographer.update({ availableDays: workingDays });
 
   res.json({
@@ -682,12 +689,10 @@ exports.updateAvailability = catchAsync(async (req, res) => {
 });
 
 // Get photographer availability for the next 30 days
-// Get photographer availability for the next 30 days
 exports.getAvailability = catchAsync(async (req, res) => {
   const { id } = req.params;
   console.log("Fetching availability for photographer ID:", id);
 
-  // Find photographer by ID
   const photographer = await Photographer.findByPk(id);
   if (!photographer) {
     return res.status(404).json({ message: "Photographer not found" });
@@ -697,7 +702,6 @@ exports.getAvailability = catchAsync(async (req, res) => {
   const thirtyDaysLater = new Date();
   thirtyDaysLater.setDate(today.getDate() + 30);
 
-  // Retrieve bookings for the photographer within the next 30 days
   const bookings = await Booking.findAll({
     attributes: ["date", "startTime", "endTime"],
     where: {
@@ -711,9 +715,7 @@ exports.getAvailability = catchAsync(async (req, res) => {
     },
   });
 
-  // Convert availableDays from an object to check per day.
   const availableDays = photographer.availableDays || {};
-  // Mapping of day abbreviations to full lowercase day names used in availableDays
   const dayMapping = {
     Sun: "sunday",
     Mon: "monday",
@@ -730,15 +732,12 @@ exports.getAvailability = catchAsync(async (req, res) => {
     const date = new Date();
     date.setDate(today.getDate() + i);
     const dateString = date.toISOString().split("T")[0];
-    // Get day abbreviation e.g. "Mon"
     const dayAbbr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
       date.getDay()
     ];
-    // Convert to the key used in your availableDays object
     const dayKey = dayMapping[dayAbbr];
 
     if (availableDays[dayKey]) {
-      // Filter bookings for the current date (comparing only the date portion)
       const dayBookings = bookings.filter((b) => {
         return new Date(b.date).toISOString().split("T")[0] === dateString;
       });
@@ -766,16 +765,14 @@ exports.getPortfolio = catchAsync(async (req, res) => {
   if (!photographer) {
     return res.status(404).json({ message: "Photographer not found" });
   }
-  // Assuming portfolioImages are stored as an array in the Photographer model.
   const portfolioImages = photographer.portfolioImages || [];
   res.json({ portfolioImages });
 });
 
 exports.deletePortfolioImage = catchAsync(async (req, res) => {
   const userId = req.userId;
-  const { imageId } = req.params; // imageId is assumed to be the filename or unique identifier of the image
+  const { imageId } = req.params;
 
-  // Retrieve the authenticated photographer profile
   const photographer = await Photographer.findOne({ where: { userId } });
   if (!photographer) {
     return res.status(404).json({ message: "Photographer profile not found" });
@@ -783,15 +780,12 @@ exports.deletePortfolioImage = catchAsync(async (req, res) => {
 
   let portfolioImages = photographer.portfolioImages || [];
 
-  // Check if the image exists in the portfolio
   if (!portfolioImages.includes(imageId)) {
     return res.status(404).json({ message: "Portfolio image not found" });
   }
 
-  // Remove the specified image from the portfolio array
   portfolioImages = portfolioImages.filter((img) => img !== imageId);
 
-  // Update the photographer profile with the new portfolio images list
   await photographer.update({ portfolioImages });
 
   res.json({
@@ -800,35 +794,6 @@ exports.deletePortfolioImage = catchAsync(async (req, res) => {
   });
 });
 
-// Upload a new portfolio image
-// exports.uploadPortfolioImage = catchAsync(async (req, res) => {
-//   const userId = req.userId;
-//   const photographer = await Photographer.findOne({ where: { userId } });
-//   if (!photographer) {
-//     return res.status(404).json({ message: "Photographer profile not found" });
-//   }
-
-//   // Since multer is configured with .array("portfolioImages", 6), use req.files
-//   const files = req.files;
-//   if (!files || files.length === 0) {
-//     return res.status(400).json({ message: "No file uploaded" });
-//   }
-
-//   // Update the photographer's portfolioImages field.
-//   // If you only expect one file at a time, you could push files[0].filename,
-//   // but here we'll push all uploaded file names.
-//   let portfolioImages = photographer.portfolioImages || [];
-//   files.forEach((file) => {
-//     portfolioImages.push(file.filename);
-//   });
-
-//   await photographer.update({ portfolioImages });
-
-//   res.status(201).json({
-//     message: "Portfolio image(s) uploaded successfully",
-//     portfolioImages,
-//   });
-// });
 exports.uploadPortfolioImage = catchAsync(async (req, res) => {
   const userId = req.userId;
   const photographer = await Photographer.findOne({ where: { userId } });
@@ -836,26 +801,142 @@ exports.uploadPortfolioImage = catchAsync(async (req, res) => {
     return res.status(404).json({ message: "Photographer profile not found" });
   }
 
-  // Since multer is configured with .array("portfolioImages", 6), use req.files
   const files = req.files;
   if (!files || files.length === 0) {
     return res.status(400).json({ message: "No file uploaded" });
   }
 
-  // Retrieve existing portfolio images (should be an array)
   let portfolioImages = photographer.portfolioImages || [];
+  console.log("Before upload - Current portfolioImages:", portfolioImages);
 
-  // Append each file's filename to the array
-  files.forEach((file) => {
-    portfolioImages.push(file.filename);
-  });
+  const newImages = files.map((file) => file.filename);
+  portfolioImages = [...portfolioImages, ...newImages];
 
-  // Update the photographer's portfolioImages using instance setter and then save
-  photographer.portfolioImages = portfolioImages;
-  await photographer.save();
+  console.log("New images to add:", newImages);
+  console.log("Updated portfolioImages before saving:", portfolioImages);
 
-  res.status(201).json({
-    message: "Portfolio image(s) uploaded successfully",
-    portfolioImages,
-  });
+  try {
+    await photographer.update({ portfolioImages });
+    console.log("Database update successful");
+
+    // Reload the photographer record to confirm the update
+    await photographer.reload();
+    console.log(
+      "After reload - portfolioImages from DB:",
+      photographer.portfolioImages
+    );
+
+    res.status(201).json({
+      message: "Portfolio image(s) uploaded successfully",
+      portfolioImages: photographer.portfolioImages,
+    });
+  } catch (error) {
+    console.error("Failed to update portfolioImages in DB:", error);
+    res.status(500).json({
+      message: "Failed to save portfolio images to database",
+      error: error.message,
+    });
+  }
+});
+
+exports.getPlaceFromCoordinates = catchAsync(async (req, res) => {
+  const { latitude, longitude } = req.query;
+
+  if (!latitude || !longitude) {
+    return res
+      .status(400)
+      .json({ message: "Latitude and longitude are required" });
+  }
+
+  try {
+    const result = await reverseGeocode(
+      Number.parseFloat(latitude),
+      Number.parseFloat(longitude)
+    );
+    res.json({
+      formattedAddress: result.formattedAddress,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Failed to get place name from coordinates" });
+  }
+});
+
+exports.getNearbyPhotographers = catchAsync(async (req, res) => {
+  console.log("getNearbyPhotographers called with params:", req.query);
+
+  const { latitude, longitude, radius = 50 } = req.query;
+
+  if (!latitude || !longitude) {
+    return res
+      .status(400)
+      .json({ message: "Latitude and longitude are required" });
+  }
+
+  const userLat = Number.parseFloat(latitude);
+  const userLng = Number.parseFloat(longitude);
+  const maxRadius = Number.parseFloat(radius);
+
+  try {
+    const photographers = await Photographer.findAll({
+      where: {
+        applicationStatus: "approved",
+        latitude: { [Op.ne]: null }, // Ensure latitude is not null
+        longitude: { [Op.ne]: null }, // Ensure longitude is not null
+      },
+      include: [
+        {
+          model: User,
+          as: "users",
+          attributes: ["id", "name", "email", "profileImage", "role"],
+          where: { role: "photographer" },
+        },
+      ],
+    });
+
+    console.log(
+      `Found ${photographers.length} photographers before distance filtering`
+    );
+
+    const nearbyPhotographers = photographers
+      .filter((photographer) => {
+        const distance = calculateDistance(
+          userLat,
+          userLng,
+          photographer.latitude,
+          photographer.longitude
+        );
+
+        photographer.dataValues.distance = Number.parseFloat(
+          distance.toFixed(2)
+        );
+
+        const isWithinRadius = distance <= maxRadius;
+        if (!isWithinRadius) {
+          console.log(
+            `Photographer ${photographer.id} is ${distance.toFixed(
+              2
+            )}km away (outside ${maxRadius}km radius)`
+          );
+        }
+        return isWithinRadius;
+      })
+      .sort((a, b) => a.dataValues.distance - b.dataValues.distance);
+
+    console.log(
+      `Returning ${nearbyPhotographers.length} photographers within ${maxRadius}km radius`
+    );
+
+    return res.json({
+      photographers: nearbyPhotographers,
+      totalPhotographers: nearbyPhotographers.length,
+    });
+  } catch (error) {
+    console.error("Error in getNearbyPhotographers:", error);
+    return res.status(500).json({
+      message: "An error occurred while fetching nearby photographers",
+      error: error.message,
+    });
+  }
 });

@@ -29,7 +29,14 @@ const getImageUrl = (
   filename,
   placeholder = "/placeholder.svg?height=48&width=48"
 ) => {
-  return filename ? `http://localhost:3000/uploads/${filename}` : placeholder;
+  if (!filename) return placeholder;
+
+  // If filename already starts with /uploads/, don't add it again
+  const baseUrl = "http://localhost:3000";
+  const path = filename.startsWith("/uploads/")
+    ? filename
+    : `/uploads/${filename}`;
+  return `${baseUrl}${path}`;
 };
 
 export default function ClientMessagesPage() {

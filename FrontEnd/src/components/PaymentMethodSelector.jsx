@@ -37,7 +37,7 @@ const PaymentMethodSelector = ({
       </div>
 
       {/* Transaction ID for online payments */}
-      {paymentMethod === "online" && (
+      {/* {paymentMethod === "online" && (
         <div className="mt-4">
           <label className="block mb-2 font-medium">Transaction ID</label>
           <input
@@ -51,7 +51,7 @@ const PaymentMethodSelector = ({
             Please enter the transaction ID from your payment provider
           </p>
         </div>
-      )}
+      )} */}
     </div>
   );
 };

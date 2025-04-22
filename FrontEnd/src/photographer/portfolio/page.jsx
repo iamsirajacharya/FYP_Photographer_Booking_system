@@ -13,14 +13,11 @@ export default function PhotographerPortfolioPage() {
   const [selectedImages, setSelectedImages] = useState([]);
   const [uploadFile, setUploadFile] = useState(null);
 
-  // Get the photographer ID from the authenticated user
   const user = useSelector((state) => state.auth.user);
   const photographerId = user?.photographerProfile?.id;
 
-  // Define your backend URL correctly.
-  const BACKEND_URL = "http://localhost:3000"; // Adjust if your backend runs on a different port (e.g., http://localhost:8000)
+  const BACKEND_URL = "http://localhost:3000";
 
-  // Fetch portfolio data
   const {
     data: portfolioData,
     isLoading: portfolioLoading,
@@ -29,36 +26,31 @@ export default function PhotographerPortfolioPage() {
     skip: !photographerId,
   });
 
-  // Mutations for portfolio management
   const [uploadPortfolioImage, { isLoading: isUploading }] =
     useUploadPortfolioImageMutation();
   const [deletePortfolioImage, { isLoading: isDeleting }] =
     useDeletePortfolioImageMutation();
 
-  // Portfolio images from API
-  const portfolioImages = portfolioData?.portfolioImages || [];
+  // const portfolioImages = portfolioData?.portfolioImages || [];
+  const rawImages = portfolioData?.portfolioImages;
+  const portfolioImages =
+    typeof rawImages === "string" ? JSON.parse(rawImages) : rawImages || [];
 
-  // Mock categories data
+  console.log("Fetched portfolioImages:", portfolioImages);
+
   const categories = [
     { id: "all", name: "All Photos", count: portfolioImages.length },
-    // { id: "portrait", name: "Portrait", count: 0 },
-    // { id: "wedding", name: "Wedding", count: 0 },
-    // { id: "fashion", name: "Fashion", count: 0 },
-    // { id: "family", name: "Family", count: 0 },
-    // { id: "event", name: "Event", count: 0 },
   ];
 
-  // Build filtered images array with full image URL
   const filteredImages = portfolioImages.map((image, index) => ({
     id: index,
-    src: `${BACKEND_URL}/uploads/${image}`, // Prepend BACKEND_URL to get full URL
-    category: "all", // In a real app, category comes from the API
+    src: `${BACKEND_URL}/uploads/${image}`,
+    category: "all",
     title: `Image ${index + 1}`,
     featured: index < 3,
     date: new Date().toISOString().split("T")[0],
   }));
 
-  // Toggle image selection
   const toggleImageSelection = (imageId) => {
     setSelectedImages((prev) =>
       prev.includes(imageId)
@@ -67,7 +59,6 @@ export default function PhotographerPortfolioPage() {
     );
   };
 
-  // Handle bulk actions
   const handleDeleteSelected = async () => {
     try {
       for (const imageId of selectedImages) {
@@ -89,21 +80,10 @@ export default function PhotographerPortfolioPage() {
     setSelectedImages([]);
   };
 
-  // Handle file upload change—if multiple files are allowed you can loop
-  // const handleFileChange = (e) => {
-  //   const files = Array.from(e.target.files);
-  //   if (files.length > 0) {
-  //     // For now, store only the first file.
-  //     setUploadFile(files[0]);
-  //     // Uncomment below to support multiple files (and later loop in handleUpload)
-  //     // setUploadFile(files);
-  //   }
-  // };
-
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
-      setUploadFile(files); // now storing an array of files
+      setUploadFile(files);
     }
   };
 
@@ -115,37 +95,21 @@ export default function PhotographerPortfolioPage() {
       uploadFile.forEach((file) => {
         formData.append("portfolioImages", file);
       });
-      await uploadPortfolioImage(formData).unwrap();
+      const result = await uploadPortfolioImage(formData).unwrap();
+      console.log("Upload response:", result);
       setUploadFile(null);
       refetch();
+      console.log("After refetch - portfolioImages should be updated");
     } catch (error) {
       console.error("Upload failed:", error);
-      alert("Failed to upload image");
+      alert(
+        "Failed to upload image: " + (error?.data?.message || error.message)
+      );
     }
   };
 
-  // Handle uploading the file and refresh portfolio after successful upload
-  // const handleUpload = async () => {
-  //   if (!uploadFile) return;
-
-  //   try {
-  //     const formData = new FormData();
-  //     // If supporting multiple files, loop and append each file.
-  //     // For now, we append one file:
-  //     formData.append("portfolioImages", uploadFile);
-  //     await uploadPortfolioImage(formData).unwrap();
-  //     setUploadFile(null);
-  //     // Refetch portfolio data to display the newly uploaded image
-  //     refetch();
-  //   } catch (error) {
-  //     console.error("Upload failed:", error);
-  //     alert("Failed to upload image");
-  //   }
-  // };
-
   return (
     <DashboardLayout>
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
@@ -171,7 +135,6 @@ export default function PhotographerPortfolioPage() {
         </div>
       </div>
 
-      {/* Category Tabs */}
       <div className="mb-6 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
         <div className="flex min-w-max">
           {categories.map((category) => (
@@ -193,7 +156,6 @@ export default function PhotographerPortfolioPage() {
         </div>
       </div>
 
-      {/* Bulk Actions */}
       {selectedImages.length > 0 && (
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between rounded-lg bg-purple-50 dark:bg-purple-900/20 p-4">
           <div className="text-sm font-medium text-purple-800 dark:text-purple-300 mb-3 sm:mb-0">
@@ -226,7 +188,6 @@ export default function PhotographerPortfolioPage() {
         </div>
       )}
 
-      {/* Portfolio Grid */}
       {portfolioLoading ? (
         <div className="flex justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-solid border-purple-600 border-r-transparent"></div>
@@ -250,14 +211,12 @@ export default function PhotographerPortfolioPage() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
-                {/* Featured badge */}
                 {image.featured && (
                   <div className="absolute top-2 left-2 rounded-full bg-purple-600 px-2 py-0.5 text-xs font-medium text-white">
                     Featured
                   </div>
                 )}
 
-                {/* Selection checkbox */}
                 <div className="absolute top-2 right-2">
                   <div
                     className={`h-5 w-5 rounded border ${
@@ -285,7 +244,6 @@ export default function PhotographerPortfolioPage() {
                   </div>
                 </div>
 
-                {/* Hover actions */}
                 <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <h3 className="text-sm font-medium text-white truncate">
                     {image.title}
@@ -317,7 +275,6 @@ export default function PhotographerPortfolioPage() {
             </div>
           ))}
 
-          {/* Upload Card */}
           <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 flex flex-col items-center justify-center text-center">
             <div className="rounded-full bg-purple-100 dark:bg-purple-900/30 p-3 mb-3">
               <Camera className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -343,7 +300,7 @@ export default function PhotographerPortfolioPage() {
             {uploadFile && (
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-xs text-gray-500 truncate max-w-[150px]">
-                  {uploadFile.name}
+                  {uploadFile.length} file(s) selected
                 </span>
                 <button
                   onClick={handleUpload}

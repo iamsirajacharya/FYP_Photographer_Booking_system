@@ -120,28 +120,14 @@ export default function AdminPhotographersPage() {
                           Portfolio Samples
                         </h5>
                         <div className="grid grid-cols-2 gap-2">
-                          {/* {photographer.portfolioImages.map((img, idx) => (
+                          {photographer.portfolio.map((img, idx) => (
                             <img
                               key={idx}
                               src={`${BACKEND_URL}/uploads/${img}`}
                               alt={`Portfolio ${idx + 1}`}
                               className="rounded-md shadow-sm aspect-square object-cover"
                             />
-                          ))} */}
-                          {Array.isArray(photographer.portfolioImages) &&
-                          photographer.portfolioImages.length > 0 ? (
-                            photographer.portfolioImages.map((img, idx) => (
-                              <img
-                                key={idx}
-                                src={`${BACKEND_URL}/uploads/${img}`}
-                                alt={`Portfolio ${idx + 1}`}
-                                className="rounded-md shadow-sm aspect-square object-cover"
-                              />
-                            ))
-                          ) : (
-                            // Optionally, display a fallback message or image
-                            <p>No portfolio images available.</p>
-                          )}
+                          ))}
                         </div>
                         <div className="mt-4 flex justify-end">
                           <button className="px-3 py-1.5 border rounded hover:bg-gray-50 flex items-center">

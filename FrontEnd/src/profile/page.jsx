@@ -85,38 +85,38 @@ const BookingsList = ({ bookings }) => {
 };
 
 // Component to list payments
-const PaymentList = ({ payments }) => {
-  if (!payments || payments.length === 0) {
-    return <p>No payments found.</p>;
-  }
-  return (
-    <div>
-      <h3 className="text-xl font-bold mb-4">Your Payments</h3>
-      <ul className="space-y-4">
-        {payments.map((payment) => (
-          <li key={payment.id} className="border p-4 rounded-lg">
-            <p>
-              <strong>Transaction ID:</strong> {payment.transactionId}
-            </p>
-            <p>
-              <strong>Amount:</strong> {payment.amount}
-            </p>
-            <p>
-              <strong>Method:</strong> {payment.paymentMethod}
-            </p>
-            <p>
-              <strong>Status:</strong> {payment.status}
-            </p>
-            <p>
-              <strong>Payment Date:</strong>{" "}
-              {new Date(payment.paymentDate).toLocaleDateString()}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
+// const PaymentList = ({ payments }) => {
+//   if (!payments || payments.length === 0) {
+//     return <p>No payments found.</p>;
+//   }
+//   return (
+//     <div>
+//       <h3 className="text-xl font-bold mb-4">Your Payments</h3>
+//       <ul className="space-y-4">
+//         {payments.map((payment) => (
+//           <li key={payment.id} className="border p-4 rounded-lg">
+//             <p>
+//               <strong>Transaction ID:</strong> {payment.transactionId}
+//             </p>
+//             <p>
+//               <strong>Amount:</strong> {payment.amount}
+//             </p>
+//             <p>
+//               <strong>Method:</strong> {payment.paymentMethod}
+//             </p>
+//             <p>
+//               <strong>Status:</strong> {payment.status}
+//             </p>
+//             <p>
+//               <strong>Payment Date:</strong>{" "}
+//               {new Date(payment.paymentDate).toLocaleDateString()}
+//             </p>
+//           </li>
+//         ))}
+//       </ul>
+//     </div>
+//   );
+// };
 
 const ProfilePage = () => {
   // Fetch current user profile
@@ -292,13 +292,7 @@ const ProfilePage = () => {
               </div>
               <nav className="mt-6">
                 <ul className="space-y-1">
-                  {[
-                    "overview",
-                    "bookings",
-                    "favorites",
-                    "payments",
-                    "settings",
-                  ].map((tab) => (
+                  {["overview", "bookings"].map((tab) => (
                     <li key={tab}>
                       <button
                         onClick={() => setActiveTab(tab)}
@@ -314,7 +308,7 @@ const ProfilePage = () => {
                         {tab === "bookings" && (
                           <Calendar className="mr-3 h-5 w-5" />
                         )}
-                        {tab === "favorites" && (
+                        {/* {tab === "favorites" && (
                           <Heart className="mr-3 h-5 w-5" />
                         )}
                         {tab === "payments" && (
@@ -322,7 +316,7 @@ const ProfilePage = () => {
                         )}
                         {tab === "settings" && (
                           <Settings className="mr-3 h-5 w-5" />
-                        )}
+                        )} */}
                         <span>
                           {tab.charAt(0).toUpperCase() + tab.slice(1)}
                         </span>
@@ -516,7 +510,7 @@ const ProfilePage = () => {
                 )}
               </div>
             )}
-            {activeTab === "payments" && (
+            {/* {activeTab === "payments" && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 {paymentsLoading ? (
                   <p>Loading payments...</p>
@@ -526,7 +520,7 @@ const ProfilePage = () => {
                   <PaymentList payments={clientPayments} />
                 )}
               </div>
-            )}
+            )} */}
             {/* You can add similar conditions for "favorites" and "settings" */}
           </div>
         </div>

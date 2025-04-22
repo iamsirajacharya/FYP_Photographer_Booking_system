@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import {
   Camera,
@@ -977,60 +975,6 @@ export default function PhotographerProfilePage() {
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                     Availability
                   </h2>
-                  <div className="mb-4">
-                    <p className="mb-2 text-sm text-gray-700 dark:text-gray-300">
-                      Set your weekly availability:
-                    </p>
-                    <div className="flex flex-wrap gap-4">
-                      {[
-                        "sunday",
-                        "monday",
-                        "tuesday",
-                        "wednesday",
-                        "thursday",
-                        "friday",
-                        "saturday",
-                      ].map((day) => (
-                        <div key={day} className="flex items-center gap-2">
-                          {isEditing ? (
-                            <>
-                              <input
-                                type="checkbox"
-                                id={day}
-                                checked={profile.availability[day]}
-                                onChange={() => handleAvailabilityToggle(day)}
-                                className="h-4 w-4"
-                              />
-                              <label
-                                htmlFor={day}
-                                className="capitalize text-sm text-gray-700 dark:text-gray-300"
-                              >
-                                {day}
-                              </label>
-                            </>
-                          ) : (
-                            <div className="capitalize text-sm text-gray-900 dark:text-gray-100">
-                              {day}:{" "}
-                              {profile.availability[day]
-                                ? "Available"
-                                : "Not Available"}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    {isEditing && (
-                      <button
-                        onClick={handleSaveAvailability}
-                        className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                        disabled={updatingAvailability}
-                      >
-                        {updatingAvailability
-                          ? "Saving..."
-                          : "Save Availability"}
-                      </button>
-                    )}
-                  </div>
                   <div>
                     <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
                       Next 30 Days Availability
@@ -1308,43 +1252,6 @@ export default function PhotographerProfilePage() {
                     Account Settings
                   </h2>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          Email Notifications
-                        </h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Receive email notifications for bookings, messages,
-                          and reviews
-                        </p>
-                      </div>
-                      <div className="flex items-center">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            isEditing &&
-                            handleSettingToggle("emailNotifications")
-                          }
-                          className={`${
-                            isEditing
-                              ? "cursor-pointer"
-                              : "cursor-not-allowed opacity-60"
-                          } relative inline-flex h-6 w-11 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                            profile.settings.emailNotifications
-                              ? "bg-purple-600"
-                              : "bg-gray-200 dark:bg-gray-700"
-                          }`}
-                        >
-                          <span
-                            className={`${
-                              profile.settings.emailNotifications
-                                ? "translate-x-5"
-                                : "translate-x-0"
-                            } pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out`}
-                          />
-                        </button>
-                      </div>
-                    </div>
                     {/* Similar toggle components for SMS Notifications, Profile Visibility, Booking Approval, and Auto-Decline */}
                     <div className="pt-4">
                       <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
@@ -1356,12 +1263,6 @@ export default function PhotographerProfilePage() {
                           onClick={() => setShowPasswordModal(true)}
                         >
                           Change Password
-                        </button>
-                        <button className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700">
-                          Export My Data
-                        </button>
-                        <button className="w-full flex items-center justify-center px-4 py-2 border border-red-300 dark:border-red-800 rounded-md text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20">
-                          Deactivate Account
                         </button>
                       </div>
                     </div>
