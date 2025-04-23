@@ -2,10 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   Menu,
-  // Moon,
-  // Search,
   Settings,
-  // Sun,
   User,
   X,
   MessageSquare,
@@ -16,14 +13,10 @@ import MessageNotification from "./MessageNotification";
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [hasNotifications, setHasNotifications] = useState(true);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  // Get unread message count from Redux store
   const { unreadCount } = useSelector((state) => state.messages);
-  // Get the authenticated user (which includes photographerProfile, if available)
   const currentUser = useSelector((state) => state.auth.user);
 
   // Close dropdown if clicking outside
@@ -67,7 +60,7 @@ export function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-1">
+        <nav className="hidden md:flex items-center space-x-1" aria-label="Main navigation">
           <NavLink
             to="/photographer/dashboard"
             end
@@ -145,15 +138,11 @@ export function Header() {
 
         {/* Header Right Section */}
         <div className="flex items-center gap-3">
-          {/* Search Button
-          <button className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
-            <Search className="h-5 w-5" />
-          </button> */}
-
           {/* Messages */}
           <NavLink
             to="/photographer/messages"
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 relative"
+            aria-label="Messages"
           >
             <MessageSquare className="h-5 w-5" />
             {unreadCount > 0 && (
@@ -170,6 +159,7 @@ export function Header() {
           <button
             onClick={toggleMobileMenu}
             className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 md:hidden"
+            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
           >
             {isMenuOpen ? (
               <X className="h-5 w-5" />
@@ -183,6 +173,7 @@ export function Header() {
             <button
               onClick={toggleProfileDropdown}
               className="h-9 w-9 overflow-hidden rounded-full border-2 border-gray-200 dark:border-gray-700 hover:border-purple-500 dark:hover:border-purple-500 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+              aria-label="User profile"
             >
               <img
                 src={
@@ -220,14 +211,14 @@ export function Header() {
                     <User className="h-4 w-4" />
                     My Profile
                   </Link>
-                  {/* <Link
+                  <Link
                     to="/photographer/settings"
                     className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                     onClick={() => setIsProfileDropdownOpen(false)}
                   >
                     <Settings className="h-4 w-4" />
                     Settings
-                  </Link> */}
+                  </Link>
                   <Link
                     to="/user/dashboard"
                     className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -240,9 +231,7 @@ export function Header() {
                     />
                     Switch to User View
                   </Link>
-
                   <div className="my-2 h-px bg-gray-200 dark:bg-gray-700" />
-
                   <button
                     onClick={handleLogout}
                     className="w-full text-left flex items-center gap-2 rounded-md px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -272,7 +261,7 @@ export function Header() {
       {/* Mobile Menu - Slide Out */}
       {isMenuOpen && (
         <div className="md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
-          <nav className="flex flex-col space-y-1 p-4">
+          <nav className="flex flex-col space-y-1 p-4" aria-label="Mobile navigation">
             <NavLink
               to="/photographer/dashboard"
               end

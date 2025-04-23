@@ -8,8 +8,11 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticate);
 
+router.get("/photographer", bookingController.getPhotographerBookings);
+
 // Booking routes
 router.post("/", bookingController.createBooking);
+// router.get("/photographer", bookingController.getPhotographerBookings);
 router.get("/all", bookingController.getAllBookings);
 router.get("/me", bookingController.getClientBookings);
 router.get("/:id", bookingController.getBookingDetails);

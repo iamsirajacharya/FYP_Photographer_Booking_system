@@ -434,6 +434,40 @@ const getBookingById = asyncHandler(async (req, res) => {
   res.json(booking);
 });
 
+const getPhotographerBookings = catchAsync(async (req, res) => {
+  const { photographerId, status, page = 1, limit = 10 } = req.query;
+  if (!photographerId) {
+    return res.status(400).json({ message: "photographerId query parameter is required" });
+  }
+
+  const offset = (page - 1) * limit;
+  const whereClause = { photographerId };
+  if (status) {
+    whereClause.status = status;
+  }
+
+  const { count, rows: bookings } = await Booking.findAndCountAll({
+    where: whereClause,
+    include: [
+      {
+        model: User,
+        as: "client",
+        attributes: ["id", "name", "email", "profileImage"],
+      },
+    ],
+    limit: Number.parseInt(limit, 10),
+    offset: Number.parseInt(offset, 10),
+    order: [["date", "DESC"]],
+  });
+
+  res.json({
+    bookings,
+    totalPages: Math.ceil(count / limit),
+    currentPage: Number.parseInt(page, 10),
+    totalBookings: count,
+  });
+});
+
 module.exports = {
   createBooking,
   getAllBookings,
@@ -442,5 +476,6 @@ module.exports = {
   updateBookingStatus,
   createReview,
   getBookings,
+  getPhotographerBookings,
   getBookingById,
 };

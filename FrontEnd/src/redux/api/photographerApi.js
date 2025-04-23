@@ -1,4 +1,3 @@
-// photographerApi.js
 import { apiSlice } from "./apiSlice";
 
 export const photographerApi = apiSlice.injectEndpoints({
@@ -12,19 +11,37 @@ export const photographerApi = apiSlice.injectEndpoints({
     }),
 
     getPhotographerDetails: builder.query({
-      query: (id) => ({
-        url: `/photographers/${id}`,
-        method: "GET",
-      }),
+      query: (id) => {
+        if (!id) {
+          throw new Error("Photographer ID is required");
+        }
+        return {
+          url: `/photographers/${id}`,
+          method: "GET",
+        };
+      },
       transformResponse: (response) => {
+        if (!response?.photographer) {
+          throw new Error("Photographer data not found");
+        }
         return {
           ...response.photographer,
-          availability: response.availability,
+          availability: response.availability || [],
           reviews: response.photographer.reviews || [],
           specialties: response.photographer.specialties || [],
         };
       },
+      transformErrorResponse: (response) => {
+        console.error("Photographer details API error:", response);
+        return {
+          status: response.status,
+          message:
+            response.data?.message || "Failed to fetch photographer details",
+        };
+      },
+      providesTags: (result, error, id) => [{ type: "Photographer", id }],
     }),
+
     bookPhotographer: builder.mutation({
       query: (bookingData) => ({
         url: "/bookings",
@@ -38,7 +55,6 @@ export const photographerApi = apiSlice.injectEndpoints({
       providesTags: (result, error, id) => [{ type: "Photographer", id }],
     }),
 
-    // Updated: Use the reviews endpoint defined in review.routes.js
     getPhotographerReviews: builder.query({
       query: (id) => `/reviews/photographer/${id}`,
       providesTags: (result, error, id) => [
@@ -64,7 +80,7 @@ export const photographerApi = apiSlice.injectEndpoints({
 
     updatePhotographerProfile: builder.mutation({
       query: (photographerData) => ({
-        url: "/photographers/profile/me", // updated URL to match your router
+        url: "/photographers/profile/me",
         method: "PUT",
         body: photographerData,
       }),
@@ -97,24 +113,19 @@ export const photographerApi = apiSlice.injectEndpoints({
       invalidatesTags: ["Photographer"],
     }),
 
-    // Updated getNearbyPhotographers with proper error handling
     getNearbyPhotographers: builder.query({
       query: (params) => ({
         url: "/photographers/nearby",
         params,
       }),
-      // Add transformResponse to handle empty results properly
-      transformResponse: (response, meta, arg) => {
-        // If the response is empty or has no photographers, return an empty array
+      transformResponse: (response) => {
         if (!response || !response.photographers) {
           return { photographers: [], totalPhotographers: 0 };
         }
         return response;
       },
-      // Add transformErrorResponse to handle errors better
       transformErrorResponse: (response) => {
         console.error("Nearby photographers API error:", response);
-        // Return a more user-friendly error
         return {
           status: response.status,
           data: {
@@ -123,7 +134,6 @@ export const photographerApi = apiSlice.injectEndpoints({
           },
         };
       },
-      // Add onQueryStarted to log requests for debugging
       async onQueryStarted(arg, { dispatch, queryFulfilled }) {
         try {
           await queryFulfilled;
@@ -138,7 +148,6 @@ export const photographerApi = apiSlice.injectEndpoints({
         url: "/photographers/geocode/reverse",
         params,
       }),
-      // Add error handling for this endpoint too
       transformErrorResponse: (response) => {
         console.error("Geocoding API error:", response);
         return {

@@ -806,25 +806,30 @@ exports.uploadPortfolioImage = catchAsync(async (req, res) => {
     return res.status(400).json({ message: "No file uploaded" });
   }
 
+  // Safely parse existing portfolioImages
   let portfolioImages = photographer.portfolioImages || [];
-  console.log("Before upload - Current portfolioImages:", portfolioImages);
+  if (typeof portfolioImages === 'string') {
+    try {
+      portfolioImages = JSON.parse(portfolioImages);
+      if (!Array.isArray(portfolioImages)) {
+        console.warn("Parsed portfolioImages is not an array, resetting to []");
+        portfolioImages = [];
+      }
+    } catch (err) {
+      console.error("Invalid JSON in portfolioImages:", photographer.portfolioImages, err);
+      portfolioImages = [];
+    }
+  }
 
-  const newImages = files.map((file) => file.filename);
+  // Add new filenames
+  const newImages = files.map(file => file.filename);
   portfolioImages = [...portfolioImages, ...newImages];
 
-  console.log("New images to add:", newImages);
-  console.log("Updated portfolioImages before saving:", portfolioImages);
-
+  // Update and reload
   try {
     await photographer.update({ portfolioImages });
-    console.log("Database update successful");
-
-    // Reload the photographer record to confirm the update
     await photographer.reload();
-    console.log(
-      "After reload - portfolioImages from DB:",
-      photographer.portfolioImages
-    );
+    console.log("Updated portfolioImages:", photographer.portfolioImages);
 
     res.status(201).json({
       message: "Portfolio image(s) uploaded successfully",
@@ -838,7 +843,6 @@ exports.uploadPortfolioImage = catchAsync(async (req, res) => {
     });
   }
 });
-
 exports.getPlaceFromCoordinates = catchAsync(async (req, res) => {
   const { latitude, longitude } = req.query;
 

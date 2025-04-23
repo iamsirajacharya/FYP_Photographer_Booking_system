@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Camera, Edit, Eye, Plus, Trash, Upload } from "lucide-react";
+import { Camera, Edit, Eye, Plus, Trash, Upload, RefreshCw } from "lucide-react";
 import DashboardLayout from "../DashboardLayout";
 import {
   useGetPhotographerPortfolioQuery,
@@ -12,6 +12,7 @@ export default function PhotographerPortfolioPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [selectedImages, setSelectedImages] = useState([]);
   const [uploadFile, setUploadFile] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const user = useSelector((state) => state.auth.user);
   const photographerId = user?.photographerProfile?.id;
@@ -21,6 +22,7 @@ export default function PhotographerPortfolioPage() {
   const {
     data: portfolioData,
     isLoading: portfolioLoading,
+    error: portfolioError,
     refetch,
   } = useGetPhotographerPortfolioQuery(photographerId, {
     skip: !photographerId,
@@ -31,12 +33,28 @@ export default function PhotographerPortfolioPage() {
   const [deletePortfolioImage, { isLoading: isDeleting }] =
     useDeletePortfolioImageMutation();
 
-  // const portfolioImages = portfolioData?.portfolioImages || [];
-  const rawImages = portfolioData?.portfolioImages;
-  const portfolioImages =
-    typeof rawImages === "string" ? JSON.parse(rawImages) : rawImages || [];
+  // Safely parse portfolioImages
+  let portfolioImages = [];
+  try {
+    const rawImages = portfolioData?.portfolioImages;
+    if (Array.isArray(rawImages)) {
+      portfolioImages = rawImages;
+    } else if (typeof rawImages === "string") {
+      // Attempt to parse JSON string
+      portfolioImages = JSON.parse(rawImages);
+      if (!Array.isArray(portfolioImages)) {
+        throw new Error("Parsed portfolioImages is not an array");
+      }
+      // Filter out invalid entries (e.g., malformed JSON fragments)
+      portfolioImages = portfolioImages.filter((img) => typeof img === "string" && img.includes("."));
+    }
+  } catch (error) {
+    console.error("Error parsing portfolioImages:", error, portfolioData?.portfolioImages);
+    setErrorMessage("Failed to load portfolio images. The data may be corrupted.");
+    portfolioImages = [];
+  }
 
-  console.log("Fetched portfolioImages:", portfolioImages);
+  console.log("Processed portfolioImages:", portfolioImages);
 
   const categories = [
     { id: "all", name: "All Photos", count: portfolioImages.length },
@@ -69,9 +87,10 @@ export default function PhotographerPortfolioPage() {
       }
       setSelectedImages([]);
       refetch();
+      setErrorMessage(null);
     } catch (error) {
       console.error("Error deleting images:", error);
-      alert("Failed to delete images");
+      setErrorMessage("Failed to delete images. Please try again.");
     }
   };
 
@@ -84,6 +103,7 @@ export default function PhotographerPortfolioPage() {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
       setUploadFile(files);
+      setErrorMessage(null);
     }
   };
 
@@ -95,17 +115,21 @@ export default function PhotographerPortfolioPage() {
       uploadFile.forEach((file) => {
         formData.append("portfolioImages", file);
       });
-      const result = await uploadPortfolioImage(formData).unwrap();
-      console.log("Upload response:", result);
+      await uploadPortfolioImage(formData).unwrap();
       setUploadFile(null);
       refetch();
-      console.log("After refetch - portfolioImages should be updated");
+      setErrorMessage(null);
     } catch (error) {
       console.error("Upload failed:", error);
-      alert(
+      setErrorMessage(
         "Failed to upload image: " + (error?.data?.message || error.message)
       );
     }
+  };
+
+  const handleRetry = () => {
+    setErrorMessage(null);
+    refetch();
   };
 
   return (
@@ -134,6 +158,22 @@ export default function PhotographerPortfolioPage() {
           </label>
         </div>
       </div>
+
+      {(errorMessage || portfolioError) && (
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg text-red-800 dark:text-red-300 flex items-center justify-between">
+          <span>
+            {errorMessage ||
+              (portfolioError?.data?.message || "Failed to load portfolio data")}
+          </span>
+          <button
+            onClick={handleRetry}
+            className="inline-flex items-center text-sm font-medium text-purple-600 hover:text-purple-700"
+          >
+            <RefreshCw className="mr-1 h-4 w-4" />
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="mb-6 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
         <div className="flex min-w-max">
